@@ -8,18 +8,16 @@ import threading
 from uuid import uuid4
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
-from flask import Flask, request, jsonify, session, render_template
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect
+from werkzeug.security import generate_password_hash, check_password_hash
 from waitress import serve
 
 # Initialize Flask application
 app = Flask(__name__)
 app.config.update(
-    SECRET_KEY=os.environ['FLASK_SECRET_KEY'],
-    SESSION_COOKIE_SECURE=True,
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax',
+    SECRET_KEY=os.environ.get('FLASK_SECRET_KEY', '1234'),
     WTF_CSRF_ENABLED=True,
     WTF_CSRF_TIME_LIMIT=3600
 )
@@ -41,7 +39,7 @@ app.logger.addHandler(handler)
 app.logger.setLevel(logging.INFO)
 
 # Configuration constants
-DATA_DIR = Path(os.environ.get('DATA_DIR', '/var/data'))
+DATA_DIR = Path(os.environ.get('DATA_DIR', 'data'))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 USERS_FILE = DATA_DIR / 'users.json'
 ITEMS_FILE = DATA_DIR / 'items.json'
@@ -98,7 +96,7 @@ class JsonDatabase:
 users_db = JsonDatabase(USERS_FILE)
 items_db = JsonDatabase(ITEMS_FILE)
 
-def generate_item():
+def generate_item(owner):
     """Generate a new random item with safety checks"""
     try:
         name = f"{random.choice(ADJECTIVES)} {random.choice(MATERIALS)} " \
@@ -110,7 +108,7 @@ def generate_item():
             "icon": random.choice(ICONS),
             "for_sale": False,
             "price": 0,
-            "owner": None,
+            "owner": owner,
             "created_at": int(time.time())
         }
     except Exception as e:
@@ -118,49 +116,91 @@ def generate_item():
         raise
 
 @app.before_request
-def assign_user():
-    """Assign user ID with thread-safe session management"""
-    if 'user_id' not in session:
-        user_id = str(uuid4())
-        session.permanent = True
-        session['user_id'] = user_id
-        
-        users = users_db.load()
-        users[user_id] = {
-            'id': user_id,
-            'tokens': 100,
-            'user_secret': str(uuid4()),
-            'last_item_time': 0,
-            'last_mine_time': 0,
-            'items': []
-        }
-        users_db.save(users)
+def authenticate_user():
+    if request.method == 'OPTIONS' or request.endpoint in ['register', 'login', 'restore_account', 'index']:
+        return
+
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({"error": "Missing or invalid Authorization header"}), 401
+    token = auth_header.split(' ')[1]
+    users = users_db.load()
+    for username, user_data in users.items():
+        if user_data.get('token') == token:
+            request.username = username
+            return
+    return jsonify({"error": "Invalid token"}), 401
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
+@app.route('/api/register', methods=['POST'])
+@csrf.exempt
+def register():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+
+    if not username or not password:
+        return jsonify({"error": "Missing username or password"}), 400
+
+    users = users_db.load()
+    if username in users:
+        return jsonify({"error": "Username already exists"}), 400
+
+    hashed_password = generate_password_hash(password)
+    users[username] = {
+        'password_hash': hashed_password,
+        'tokens': 100,
+        'last_item_time': 0,
+        'last_mine_time': 0,
+        'items': [],
+        'token': None
+    }
+    users_db.save(users)
+    return jsonify({"success": True}), 201
+
+@app.route('/api/login', methods=['POST'])
+@csrf.exempt
+def login():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+
+    if not username or not password:
+        return jsonify({"error": "Missing username or password"}), 400
+
+    users = users_db.load()
+    user = users.get(username)
+    if not user or not check_password_hash(user['password_hash'], password):
+        return jsonify({"error": "Invalid username or password"}), 401
+
+    token = str(uuid4())
+    user['token'] = token
+    users_db.save(users)
+    return jsonify({"success": True, "token": token})
+
 @app.route('/api/account', methods=['GET'])
 @csrf.exempt
 def get_account():
     users = users_db.load()
-    user = users.get(session['user_id'])
-    if user is None:
-        user = {
-            'id': session['user_id'],
-            'tokens': 100,
-            'user_secret': str(uuid4()),
-            'last_item_time': 0,
-            'last_mine_time': 0,
-            'items': []
-        }
-        users[session['user_id']] = user
-        users_db.save(users)
+    username = request.username
+    user = users.get(username)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    
+    items = items_db.load()
+    user_items = []
+    for item_id in user['items']:
+        item = items.get(item_id)
+        if item:
+            user_items.append(item)
+
     return jsonify({
-        'id': user['id'],
+        'username': username,
         'tokens': user['tokens'],
-        'items': user['items'],
-        'user_secret': user['user_secret'],
+        'items': user_items,
         'last_item_time': user['last_item_time'],
         'last_mine_time': user['last_mine_time']
     })
@@ -170,10 +210,12 @@ def get_account():
 def create_item():
     users = users_db.load()
     items = items_db.load()
-    
-    user_id = session['user_id']
-    user = users[user_id]
+    username = request.username
+    user = users.get(username)
     now = time.time()
+
+    if not user:
+        return jsonify({"error": "User not found"}), 404
 
     if now - user['last_item_time'] < ITEM_CREATE_COOLDOWN:
         remaining = ITEM_CREATE_COOLDOWN - (now - user['last_item_time'])
@@ -183,16 +225,15 @@ def create_item():
         return jsonify({"error": "Not enough tokens"}), 402
 
     try:
-        new_item = generate_item()
-        new_item['owner'] = user_id
+        new_item = generate_item(username)
         items[new_item['id']] = new_item
-        user['items'].append(new_item)
+        user['items'].append(new_item['id'])
         user['last_item_time'] = now
         user['tokens'] -= 10
         
         items_db.save(items)
         users_db.save(users)
-        return jsonify(new_item)
+        return jsonify({k: v for k, v in new_item.items() if k != 'item_secret'})
     except Exception as e:
         app.logger.error(f"Item creation failed: {str(e)}")
         return jsonify({"error": "Item creation failed"}), 500
@@ -201,9 +242,12 @@ def create_item():
 @csrf.exempt
 def mine_tokens():
     users = users_db.load()
-    user_id = session['user_id']
-    user = users[user_id]
+    username = request.username
+    user = users.get(username)
     now = time.time()
+
+    if not user:
+        return jsonify({"error": "User not found"}), 404
 
     if now - user['last_mine_time'] < TOKEN_MINE_COOLDOWN:
         remaining = TOKEN_MINE_COOLDOWN - (now - user['last_mine_time'])
@@ -216,14 +260,12 @@ def mine_tokens():
 
 @app.route('/api/market', methods=['GET'])
 def market():
-    users = users_db.load()
     items = items_db.load()
-    user_id = session['user_id']
-    
+    username = request.username
     market_items = [
         {k: v for k, v in item.items() if k != 'item_secret'}
         for item in items.values()
-        if item['for_sale']
+        if item['for_sale'] and item['owner'] != username
     ]
     return jsonify(market_items)
 
@@ -244,11 +286,10 @@ def sell_item():
     except ValueError:
         return jsonify({"error": f"Invalid price (must be {MIN_ITEM_PRICE}-{MAX_ITEM_PRICE})"}), 400
 
-    users = users_db.load()
     items = items_db.load()
-    user_id = session['user_id']
+    username = request.username
 
-    if item_id not in items or items[item_id]['owner'] != user_id:
+    if item_id not in items or items[item_id]['owner'] != username:
         return jsonify({"error": "Item not found"}), 404
 
     if items[item_id]['for_sale']:
@@ -271,21 +312,21 @@ def buy_item():
 
     users = users_db.load()
     items = items_db.load()
-    buyer_id = session['user_id']
+    buyer_username = request.username
+    buyer = users.get(buyer_username)
 
     if item_id not in items or not items[item_id]['for_sale']:
         return jsonify({"error": "Item not available"}), 404
 
     item = items[item_id]
-    if buyer_id == item['owner']:
+    if buyer_username == item['owner']:
         return jsonify({"error": "Cannot buy your own item"}), 400
 
-    buyer = users[buyer_id]
     if buyer['tokens'] < item['price']:
         return jsonify({"error": "Not enough tokens"}), 402
 
-    seller_id = item['owner']
-    seller = users[seller_id]
+    seller_username = item['owner']
+    seller = users[seller_username]
 
     # Transfer tokens
     buyer['tokens'] -= item['price']
@@ -294,14 +335,14 @@ def buy_item():
     # Transfer ownership
     seller['items'].remove(item_id)
     buyer['items'].append(item_id)
-    item['owner'] = buyer_id
+    item['owner'] = buyer_username
     item['for_sale'] = False
     item['price'] = 0
 
     items_db.save(items)
     users_db.save(users)
     return jsonify({"success": True, "item": item_id})
-  
+
 @app.route('/api/lookup_item', methods=['GET'])
 def lookup_item():
     item_id = request.args.get('item_id')
@@ -315,50 +356,8 @@ def lookup_item():
     if not item:
         return jsonify({"error": "Item not found"}), 404
 
-    # Exclude the 'item_secret' from the response
     item_data = {k: v for k, v in item.items() if k != 'item_secret'}
-    
     return jsonify({"item": item_data})
-  
-@app.route('/api/restore_account', methods=['POST'])
-@csrf.exempt
-def restore_account():
-    data = request.get_json()
-    user_secret = data.get('user_secret')
-
-    if not user_secret:
-        return jsonify({"error": "Missing user_secret"}), 400
-
-    users = users_db.load()
-
-    # Find the original account by user_secret
-    original_user_id = next((uid for uid, udata in users.items() if udata['user_secret'] == user_secret), None)
-
-    if not original_user_id:
-        return jsonify({"error": "Account not found"}), 404
-
-    original_user = users[original_user_id]
-
-    # Assign a new user secret
-    new_user_secret = str(uuid4())
-
-    # Copy the data from the original account, but with a new secret
-    users[session['user_id']] = {
-        'tokens': original_user['tokens'],
-        'user_secret': new_user_secret,
-        'last_item_time': original_user['last_item_time'],
-        'last_mine_time': original_user['last_mine_time'],
-        'items': original_user['items'][:]
-    }
-    
-    # Remove all data from the original account
-    del users[original_user_id]
-
-    users_db.save(users)
-    return jsonify({"success": True})
-
 
 if __name__ == '__main__':
-    users_db.load()
-    items_db.load()
     serve(app, host='0.0.0.0', port=5000, threads=4)

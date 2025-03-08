@@ -4,7 +4,6 @@
   <head>
     <meta charset="UTF-8">
     <title>Economix</title>
-
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -43,262 +42,333 @@
         padding: 10px;
         border: 1px solid #ccc;
       }
+
+      #authForms {
+        margin-bottom: 20px;
+        padding: 20px;
+        background: #fff;
+        border: 1px solid #ccc;
+      }
+
+      .auth-form {
+        margin-bottom: 15px;
+      }
+
+      input {
+        padding: 8px;
+        margin: 5px;
+        width: 200px;
+      }
     </style>
   </head>
 
   <body>
-    <h1>Economix v1.2.1</h1>
-    <div id="account">
-      <p>Tokens: <span id="tokens"></span></p>
-      <button id="refreshAccount">Refresh Account</button>
-      <button id="refreshMarket">Refresh Marketplace</button>
-      <button id="viewAccountSecret">View Account Secret (Backup Code)</button>
-      <button id="restoreAccount">Restore Account (From Backup Code)</button>
+    <div id="authForms">
+      <div class="auth-form">
+        <h2>Login</h2>
+        <input type="text" id="loginUsername" placeholder="Username">
+        <input type="password" id="loginPassword" placeholder="Password">
+        <button onclick="handleLogin()">Login</button>
+      </div>
+      <div class="auth-form">
+        <h2>Register</h2>
+        <input type="text" id="registerUsername" placeholder="Username">
+        <input type="password" id="registerPassword" placeholder="Password">
+        <button onclick="handleRegister()">Register</button>
+      </div>
     </div>
-    <div id="take">
-      <button id="takeItem">Enter Secret to Take Item (costs 10 tokens)</button>
+
+    <div id="mainContent" style="display: none;">
+      <h1>Economix v1.3</h1>
+      <div id="account">
+        <p>Welcome, <span id="usernameDisplay"></span>!</p>
+        <p>Tokens: <span id="tokens"></span></p>
+        <button id="logout">Logout</button>
+      </div>
+      <div id="take">
+        <button id="takeItem">Enter Secret to Take Item (costs 10 tokens)</button>
+      </div>
+      <div id="create">
+        <button id="createItem">Create Item (every 60 seconds - costs 10 tokens)</button>
+        <p id="cooldown"></p>
+      </div>
+      <div id="mine">
+        <button id="mineItem">Mine Tokens (every 10 minutes)</button>
+        <p id="mineCooldown"></p>
+      </div>
+      <div id="myItems">
+        <h2>My Items</h2>
+        <ul id="itemsList"></ul>
+      </div>
+      <div id="market">
+        <h2>Marketplace</h2>
+        <ul id="marketList"></ul>
+      </div>
     </div>
-    <div id="create">
-      <button id="createItem">Create Item (every 60 seconds - costs 10 tokens)</button>
-      <p id="cooldown"></p>
-    </div>
-    <div id="mine">
-      <button id="mineItem">Mine Tokens (every 10 minutes)</button>
-      <p id="mineCooldown"></p>
-    </div>
-    <div id="myItems">
-      <h2>My Items</h2>
-      <ul id="itemsList"></ul>
-    </div>
-    <div id="market">
-      <h2>Marketplace</h2>
-      <ul id="marketList"></ul>
-    </div>
+
     <script>
       let items = [];
       let account = {};
+      let token = null;
 
+      const ITEM_CREATE_COOLDOWN = 60;
+      const TOKEN_MINE_COOLDOWN = 600;
+
+      // Auth functions
+      function handleLogin() {
+        const username = document.getElementById('loginUsername').value;
+        const password = document.getElementById('loginPassword').value;
+
+        fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.token) {
+              localStorage.setItem('token', data.token);
+              token = data.token;
+              showMainContent();
+              refreshAccount();
+            } else {
+              alert('Login failed: ' + (data.error || 'Unknown error'));
+            }
+          });
+      }
+
+      function handleRegister() {
+        const username = document.getElementById('registerUsername').value;
+        const password = document.getElementById('registerPassword').value;
+
+        fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              alert('Registration successful! Please login.');
+            } else {
+              alert('Registration failed: ' + (data.error || 'Unknown error'));
+            }
+          });
+      }
+
+      function showMainContent() {
+        document.getElementById('authForms').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+      }
+
+      // Auth check on page load
       document.addEventListener('DOMContentLoaded', () => {
-        const tokensSpan = document.getElementById('tokens');
-        const itemsList = document.getElementById('itemsList');
-        const marketList = document.getElementById('marketList');
-        const cooldownEl = document.getElementById('cooldown');
-
-        function takeItem() {
-          const secret = prompt('Enter the secret code:');
-          if (!secret) return;
-          fetch('/api/take_item', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ item_secret: secret })
-          })
-            .then(res => res.json())
-            .then(data => {
-              if (data.success) {
-                alert('Item taken!');
-                refreshAccount();
-              } else {
-                alert(data.error || 'Error taking item.');
-              }
-            });
+        token = localStorage.getItem('token');
+        if (token) {
+          showMainContent();
+          refreshAccount();
+          refreshMarket();
         }
-
-        // Refresh account data (tokens, owned items, and cooldown status)
-        function refreshAccount() {
-          fetch('/api/account')
-            .then(res => res.json())
-            .then(data => {
-              tokensSpan.textContent = data.tokens;
-
-              items = data.items;
-              account = data;
-
-              // List user-owned items with a sell option.
-              itemsList.innerHTML = '';
-              data.items.forEach(item => {
-                const li = document.createElement('li');
-                li.textContent = `${item.icon} ${item.name} ${item.for_sale ? "(For Sale)" : ""}`;
-                const sellBtn = document.createElement('button');
-                sellBtn.textContent = item.for_sale ? 'Cancel Sale' : 'Sell';
-                sellBtn.onclick = () => sellItem(item.id);
-                const viewSecretBtn = document.createElement('button');
-                viewSecretBtn.textContent = 'View Secret';
-                viewSecretBtn.onclick = () => viewSecret(item.id);
-                const viewIdBtn = document.createElement('button');
-                viewIdBtn.textContent = 'View ID';
-                viewIdBtn.onclick = () => alert('Item ID: ' + item.id);
-                li.appendChild(sellBtn);
-                li.appendChild(viewSecretBtn);
-                itemsList.appendChild(li);
-              });
-
-              // Show cooldown if item creation is not yet available.
-              const now = Date.now() / 1000;
-              const remaining = 60 - (now - data.last_item_time);
-              if (remaining > 0) {
-                cooldownEl.textContent = `Item creation cooldown active: ${Math.ceil(remaining)} seconds remaining`;
-              } else {
-                cooldownEl.textContent = '';
-              }
-
-              // Show cooldown if token mining is not yet available.
-              const mineRemaining = 60 * 10 - (now - data.last_mine_time);
-              const mineCooldownEl = document.getElementById('mineCooldown');
-              if (mineRemaining > 0) {
-                mineCooldownEl.textContent = `Token mining cooldown active: ${Math.ceil(mineRemaining / 60)} minutes remaining`;
-              } else {
-                mineCooldownEl.textContent = '';
-              }
-            });
-        }
-
-        // Refresh the marketplace items.
-        function refreshMarket() {
-          fetch('/api/market')
-            .then(res => res.json())
-            .then(data => {
-              marketList.innerHTML = '';
-              data.forEach(item => {
-                if (item.owner === account.id) {
-                  const li = document.createElement('li');
-                  li.textContent = `${item.icon} ${item.name} - Your item`;
-                  marketList.appendChild(li);
-                }
-                else {
-                  const li = document.createElement('li');
-                  li.textContent = `${item.icon} ${item.name} - Price: ${item.price} tokens`;
-                  const buyBtn = document.createElement('button');
-                  buyBtn.textContent = 'Buy';
-                  buyBtn.onclick = () => buyItem(item.id);
-                  li.appendChild(buyBtn);
-                  marketList.appendChild(li);
-                }
-              });
-            });
-        }
-
-        // Create a new item if cooldown has passed.
-        function createItem() {
-          fetch('/api/create_item', { method: 'POST' })
-            .then(res => {
-              if (!res.ok) {
-                return res.json().then(data => { throw data; });
-              }
-              return res.json();
-            })
-            .then(item => {
-              alert(`Created item: ${item.icon} ${item.name}`);
-              refreshAccount();
-            })
-            .catch(err => {
-              if (err.remaining) {
-                alert(`Cooldown active, please wait ${Math.ceil(err.remaining)} seconds.`);
-              } else {
-                alert('Error creating item.');
-              }
-            });
-        }
-
-        // Mine tokens if cooldown has passed.
-        function mineTokens() {
-          fetch('/api/mine_tokens', { method: 'POST' })
-            .then(res => {
-              if (!res.ok) {
-                return res.json().then(data => { throw data; });
-              }
-              return res.json();
-            })
-            .then(data => {
-              alert(`Mined tokens! You now have ${data.tokens} tokens.`);
-              refreshAccount();
-            })
-            .catch(err => {
-              if (err.remaining) {
-                alert(`Cooldown active, please wait ${Math.ceil(err.remaining / 60)} minutes.`);
-              } else {
-                alert('Error mining tokens.');
-              }
-            });
-        }
-
-        // List an owned item for sale at a user-specified price.
-        function sellItem(itemId) {
-          const price = prompt("Enter sale price (tokens):");
-          if (!price) return;
-          fetch('/api/sell_item', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ item_id: itemId, price: parseInt(price) })
-          })
-            .then(res => res.json())
-            .then(data => {
-              if (data.success) {
-                alert('Item listed for sale!');
-                refreshAccount();
-                refreshMarket();
-              } else {
-                alert('Error listing item.');
-              }
-            });
-        }
-
-        // View the secret of an owned item.
-        function viewSecret(itemId) {
-          let item = items.find(item => item.id == itemId);
-          alert(`Secret (do not share - it will let people take your item): ${item.item_secret}`);
-        }
-
-        // Purchase an item from the marketplace.
-        function buyItem(itemId) {
-          fetch('/api/buy_item', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ item_id: itemId })
-          })
-            .then(res => res.json())
-            .then(data => {
-              if (data.success) {
-                alert('Item purchased!');
-                refreshAccount();
-                refreshMarket();
-              } else {
-                alert(data.error || 'Error buying item.');
-              }
-            });
-        }
-
-        // Restore an account from a user secret.
-        function restoreAccount() {
-          const userSecret = prompt('Enter user secret:');
-          if (!userSecret) return;
-          fetch('/api/restore_account', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_secret: userSecret })
-          })
-            .then(res => res.json())
-            .then(data => {
-              if (data.success) {
-                alert('Account restored!');
-                refreshAccount();
-              } else {
-                alert(data.error || 'Error restoring account.');
-              }
-            });
-        }
-
-        document.getElementById('createItem').addEventListener('click', createItem);
-        document.getElementById('mineItem').addEventListener('click', mineTokens);
-        document.getElementById('refreshAccount').addEventListener('click', refreshAccount);
-        document.getElementById('refreshMarket').addEventListener('click', refreshMarket);
-        document.getElementById('takeItem').addEventListener('click', takeItem);
-        document.getElementById('viewAccountSecret').addEventListener('click', () => alert('Account Secret (back it up): ' + account.user_secret));
-
-        // Initial data load.
-        refreshAccount();
-        refreshMarket();
       });
 
+      // Modified API functions with auth headers
+      function refreshAccount() {
+        const token = localStorage.getItem('token');
+        fetch('/api/account', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.error) {
+              localStorage.removeItem('token');
+              location.reload();
+              return;
+            }
+
+            document.getElementById('tokens').textContent = data.tokens;
+            document.getElementById('usernameDisplay').textContent = data.username;
+            items = data.items;
+            account = data;
+
+            // Update items list
+            const itemsList = document.getElementById('itemsList');
+            itemsList.innerHTML = '';
+            data.items.forEach(item => {
+              const li = document.createElement('li');
+              li.textContent = `${item.icon} ${item.name} ${item.for_sale ? "(For Sale)" : ""}`;
+              const sellBtn = document.createElement('button');
+              sellBtn.textContent = item.for_sale ? 'Cancel Sale' : 'Sell';
+              if (item.for_sale) {
+                sellBtn.onclick = () => cancelSale(item.id);
+              }
+              else {
+                sellBtn.onclick = () => sellItem(item.id);
+              }
+              const viewSecretBtn = document.createElement('button');
+              viewSecretBtn.textContent = 'View Secret';
+              viewSecretBtn.onclick = () => viewSecret(item.id);
+              li.appendChild(sellBtn);
+              li.appendChild(viewSecretBtn);
+              itemsList.appendChild(li);
+            });
+
+            // Update cooldowns
+            const now = Date.now() / 1000;
+            const remaining = ITEM_CREATE_COOLDOWN - (now - data.last_item_time);
+            const cooldownEl = document.getElementById('cooldown');
+            cooldownEl.textContent = remaining > 0 ?
+              `Item creation cooldown: ${Math.ceil(remaining)}s remaining` : '';
+
+            const mineRemaining = TOKEN_MINE_COOLDOWN - (now - data.last_mine_time);
+            const mineCooldownEl = document.getElementById('mineCooldown');
+            mineCooldownEl.textContent = mineRemaining > 0 ?
+              `Mining cooldown: ${Math.ceil(mineRemaining / 60)}m remaining` : '';
+          });
+      }
+
+      function refreshMarket() {
+        const token = localStorage.getItem('token');
+        fetch('/api/market', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+          .then(res => res.json())
+          .then(data => {
+            const marketList = document.getElementById('marketList');
+            marketList.innerHTML = '';
+            data.forEach(item => {
+              const li = document.createElement('li');
+              li.textContent = `${item.icon} ${item.name} - Price: ${item.price} tokens`;
+              if (item.owner !== account.username) {
+                const buyBtn = document.createElement('button');
+                buyBtn.textContent = 'Buy';
+                buyBtn.onclick = () => buyItem(item.id);
+                li.appendChild(buyBtn);
+              }
+              marketList.appendChild(li);
+            });
+          });
+      }
+
+      // Modified API call examples (add similar headers to all)
+      function createItem() {
+        const token = localStorage.getItem('token');
+        fetch('/api/create_item', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+          .then(handleResponse)
+          .then(item => {
+            alert(`Created item: ${item.icon} ${item.name}`);
+            refreshAccount();
+          });
+      }
+
+      function buyItem(itemId) {
+        const token = localStorage.getItem('token');
+        fetch('/api/buy_item', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ item_id: itemId })
+        })
+          .then(handleResponse)
+          .then(data => {
+            if (data.success) {
+              alert('Item purchased!');
+              refreshAccount();
+              refreshMarket();
+            }
+          });
+      }
+
+      // View the secret of an owned item.
+      function viewSecret(itemId) {
+        let item = items.find(item => item.id == itemId);
+        alert(`Secret (do not share - it will let people take your item): ${item.item_secret}`);
+      }
+
+      // Mine tokens if cooldown has passed.
+      function mineTokens() {
+        console.log('mining tokens');
+        fetch('/api/mine_tokens', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } })
+          .then(handleResponse)
+          .then(data => {
+            alert(`Mined tokens! You now have ${data.tokens} tokens.`);
+            refreshAccount();
+          })
+          .catch(err => {
+            if (err.remaining) {
+              alert(`Cooldown active, please wait ${Math.ceil(err.remaining / 60)} minutes.`);
+            } else {
+              alert('Error mining tokens.');
+            }
+          });
+      }
+
+      // List an owned item for sale at a user-specified price.
+      function sellItem(itemId) {
+        const price = prompt("Enter sale price (tokens):");
+        if (!price) return;
+        fetch('/api/sell_item', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ item_id: itemId, price: parseInt(price) })
+        })
+          .then(handleResponse)
+          .then(data => {
+            if (data.success) {
+              alert('Item listed for sale!');
+              refreshAccount();
+              refreshMarket();
+            } else {
+              alert('Error listing item.');
+            }
+          });
+      }
+
+      function cancelSale(itemId) {
+        fetch('/api/sell_item', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ item_id: itemId, price: 1 })
+        })
+          .then(handleResponse)
+          .then(data => {
+            if (data.success) {
+              alert('Sale cancelled!');
+              refreshAccount();
+              refreshMarket();
+            } else {
+              alert('Error cancelling sale.');
+            }
+          });
+      }
+
+      // Helper function for API responses
+      function handleResponse(res) {
+        if (!res.ok) {
+          return res.json().then(data => { throw data; });
+        }
+        return res.json();
+      }
+
+      // Event listeners
+      document.getElementById('createItem').addEventListener('click', createItem);
+      document.getElementById('mineItem').addEventListener('click', mineTokens);
+      document.getElementById('logout').addEventListener('click', () => {
+        localStorage.removeItem('token');
+        alert('Logged out. Refresh page to log back in.');
+      });
+
+      // Interval
+      setInterval(() => {
+        if (account.username) {
+          refreshAccount();
+          refreshMarket();
+        }
+      }, 1000);
     </script>
   </body>
 
