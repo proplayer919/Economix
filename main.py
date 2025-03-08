@@ -10,9 +10,9 @@ app = Flask(__name__)
 CORS(app)
 app.secret_key = os.getenv('FLASK_SECRET_KEY')
 
-# File paths for JSON "databases"
-USERS_FILE = 'users.json'
-ITEMS_FILE = 'items.json'
+# File paths for JSON
+USERS_FILE = '/var/data/users.json'
+ITEMS_FILE = '/var/data/items.json'
 
 ITEM_CREATE_COOLDOWN = 60 # 60 seconds
 TOKEN_MINE_COOLDOWN = 60 * 10 # 10 minutes
