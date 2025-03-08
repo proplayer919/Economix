@@ -402,6 +402,8 @@
               li.textContent = `${item.icon} ${item.name} - Price: ${item.price} tokens`;
               if (item.owner !== account.username) {
                 const buyBtn = document.createElement('button');
+                buyBtn.classList.add('btn');
+                buyBtn.classList.add('btn-primary');
                 buyBtn.textContent = 'Buy';
                 buyBtn.onclick = () => buyItem(item.id);
                 li.appendChild(buyBtn);
