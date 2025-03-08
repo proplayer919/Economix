@@ -246,6 +246,39 @@ def reset_cooldowns():
     user['last_mine_time'] = 0
     users_db.save(users)
     return jsonify({"success": True})
+  
+@app.route('/api/edit_tokens', methods=['POST'])
+@csrf.exempt
+@requires_admin
+def edit_tokens():
+    data = request.get_json()
+    tokens = data.get('tokens')
+    users = users_db.load()
+    user = users.get(request.username)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    user['tokens'] = tokens
+    users_db.save(users)
+    return jsonify({"success": True})
+  
+@app.route('/api/edit_item', methods=['POST'])
+@csrf.exempt
+@requires_admin
+def edit_item():
+    data = request.get_json()
+    item_id = data.get('item_id')
+    new_name = data.get('new_name', None)
+    new_icon = data.get('new_icon', None)
+    items = items_db.load()
+    item = items.get(item_id)
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+    if new_name:
+        item['name'] = new_name
+    if new_icon:
+        item['icon'] = new_icon
+    items_db.save(items)
+    return jsonify({"success": True})
 
 @app.route('/api/create_item', methods=['POST'])
 @csrf.exempt
