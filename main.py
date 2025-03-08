@@ -127,6 +127,7 @@ def assign_user():
         
         users = users_db.load()
         users[user_id] = {
+            'id': user_id,
             'tokens': 100,
             'user_secret': str(uuid4()),
             'last_item_time': 0,
@@ -146,6 +147,7 @@ def get_account():
     user = users.get(session['user_id'])
     if user is None:
         user = {
+            'id': session['user_id'],
             'tokens': 100,
             'user_secret': str(uuid4()),
             'last_item_time': 0,
@@ -155,6 +157,7 @@ def get_account():
         users[session['user_id']] = user
         users_db.save(users)
     return jsonify({
+        'id': user['id'],
         'tokens': user['tokens'],
         'items': user['items'],
         'user_secret': user['user_secret'],
