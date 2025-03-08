@@ -209,7 +209,7 @@
               return res.json();
             })
             .then(data => {
-              alert(`Mined ${data.tokens} tokens!`);
+              alert(`Mined tokens! You now have ${data.tokens} tokens.`);
               refreshAccount();
             })
             .catch(err => {
