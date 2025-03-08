@@ -279,6 +279,20 @@ def edit_item():
         item['icon'] = new_icon
     items_db.save(items)
     return jsonify({"success": True})
+  
+@app.route('/api/add_admin', methods=['POST'])
+@csrf.exempt
+@requires_admin
+def add_admin():
+    data = request.get_json()
+    username = data.get('username')
+    users = users_db.load()
+    user = users.get(username)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    user['admin'] = True
+    users_db.save(users)
+    return jsonify({"success": True})
 
 @app.route('/api/create_item', methods=['POST'])
 @csrf.exempt

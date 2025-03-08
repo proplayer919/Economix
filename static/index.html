@@ -292,7 +292,8 @@
               <button class="btn btn-primary" id="takeItem">🔍 Take Item (costs 10 tokens)</button>
               <button class="btn btn-primary" id="createItem">✨ Create Item (costs 10 tokens)</button>
               <button class="btn btn-primary" id="mineItem">⛏️ Mine Tokens</button>
-              <button class="btn btn-danger" id="editTokens" class="admin-button">Edit Tokens (Admin)</button>
+              <button class="btn btn-danger admin-button" id="editTokens">Edit Tokens (Admin)</button>
+              <button class="btn btn-danger admin-button" id="addAdmin">Add Admin (Admin)</button>
               <p class="cooldown" id="cooldown"></p>
               <p class="cooldown" id="mineCooldown"></p>
             </div>
@@ -839,11 +840,34 @@
         });
       }
 
+      // Add Admin
+      function addAdmin() {
+        customPrompt("Enter username:").then(username => {
+          if (!username) return;
+          fetch('/api/add_admin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ username: username })
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                customAlert('Admin added!').then(() => {
+                  refreshAccount();
+                });
+              } else {
+                customAlert('Error adding admin.');
+              }
+            });
+        });
+      }
+
       // Event listeners
       document.getElementById('createItem').addEventListener('click', createItem);
       document.getElementById('mineItem').addEventListener('click', mineTokens);
       document.getElementById('takeItem').addEventListener('click', takeItem);
       document.getElementById('editTokens').addEventListener('click', editTokens);
+      document.getElementById('addAdmin').addEventListener('click', addAdmin);
       document.getElementById('logout').addEventListener('click', () => {
         localStorage.removeItem('token');
       });
