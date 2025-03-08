@@ -312,8 +312,10 @@
               <button class="btn btn-primary" id="takeItem">🔍 Take Item (costs 10 tokens)</button>
               <button class="btn btn-primary" id="createItem">✨ Create Item (costs 10 tokens)</button>
               <button class="btn btn-primary" id="mineItem">⛏️ Mine Tokens</button>
-              <button class="btn btn-danger admin-button" id="editTokens" style="display: none;">Edit Tokens (Admin)</button>
-              <button class="btn btn-danger admin-button" id="addAdmin" style="display: none;">Add Admin (Admin)</button>
+              <button class="btn btn-danger admin-button" id="editTokens" style="display: none;">Edit Tokens
+                (Admin)</button>
+              <button class="btn btn-danger admin-button" id="addAdmin" style="display: none;">Add Admin
+                (Admin)</button>
               <p class="cooldown" id="cooldown"></p>
               <p class="cooldown" id="mineCooldown"></p>
             </div>
@@ -450,7 +452,6 @@
               token = data.token;
               showMainContent();
               refreshAccount();
-              extraButtons();
             } else {
               customAlert('Login failed: ' + (data.error || 'Unknown error'));
             }
@@ -480,14 +481,6 @@
         document.getElementById('authForms').style.display = 'none';
         document.getElementById('mainContent').style.display = 'block';
       }
-
-      function extraButtons() {
-        if (!account.admin) return;
-        document.getElementsByClassName('admin-buttons').forEach(button => {
-          button.style.display = 'block';
-        });
-      }
-
       // Modified API functions with auth headers
       function refreshAccount() {
         const token = localStorage.getItem('token');
@@ -506,8 +499,16 @@
             document.getElementById('usernameDisplay').textContent = data.username;
             if (data.admin) {
               document.getElementById('roleDisplay').innerHTML = `You are an <strong>Admin</strong>`;
+              let elements = document.getElementsByClassName('admin-button');
+              for (let i = 0; i < elements.length; i++) {
+                elements[i].style.display = 'inline-block';
+              }
             } else {
               document.getElementById('roleDisplay').innerHTML = `You are a <strong>User</strong>`;
+              let elements = document.getElementsByClassName('admin-button');
+              for (let i = 0; i < elements.length; i++) {
+                elements[i].style.display = 'none';
+              }
             }
             items = data.items;
             account = data;
