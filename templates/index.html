@@ -2,8 +2,8 @@
 <html lang="en">
 
   <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Economix</title>
     <style>
       :root {
@@ -196,6 +196,45 @@
           grid-template-columns: 1fr;
         }
       }
+
+      /* Custom Modal Styles */
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.4);
+      }
+
+      .modal-content {
+        background-color: #fff;
+        margin: 15% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%;
+        max-width: 400px;
+        border-radius: 10px;
+        position: relative;
+      }
+
+      .close {
+        color: #aaa;
+        position: absolute;
+        right: 10px;
+        top: 5px;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      .modal-actions {
+        text-align: right;
+        margin-top: 1rem;
+      }
     </style>
   </head>
 
@@ -206,16 +245,16 @@
           <div class="auth-card">
             <div class="auth-form">
               <h2>Welcome to Economix v1.4</h2>
-              <input type="text" id="loginUsername" placeholder="Username">
-              <input type="password" id="loginPassword" placeholder="Password">
+              <input type="text" id="loginUsername" placeholder="Username" />
+              <input type="password" id="loginPassword" placeholder="Password" />
               <button class="btn btn-primary" onclick="handleLogin()">Login</button>
             </div>
           </div>
           <div class="auth-card">
             <div class="auth-form">
               <h2>Create Account</h2>
-              <input type="text" id="registerUsername" placeholder="Username">
-              <input type="password" id="registerPassword" placeholder="Password">
+              <input type="text" id="registerUsername" placeholder="Username" />
+              <input type="password" id="registerPassword" placeholder="Password" />
               <button class="btn btn-success" onclick="handleRegister()">Register</button>
             </div>
           </div>
@@ -265,6 +304,22 @@
       </div>
     </div>
 
+    <!-- Custom Modal -->
+    <div id="customModal" class="modal">
+      <div class="modal-content">
+        <span id="modalClose" class="close">&times;</span>
+        <p id="modalMessage"></p>
+        <div id="modalInputContainer" style="display: none;">
+          <input type="text" id="modalInput"
+            style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 0.5rem; margin-top: 1rem;" />
+        </div>
+        <div class="modal-actions">
+          <button id="modalCancel" class="btn btn-danger">Cancel</button>
+          <button id="modalOk" class="btn btn-primary">OK</button>
+        </div>
+      </div>
+    </div>
+
     <script>
       let items = [];
       let account = {};
@@ -272,6 +327,65 @@
 
       const ITEM_CREATE_COOLDOWN = 60;
       const TOKEN_MINE_COOLDOWN = 600;
+
+      // Custom modal functions
+      function customAlert(message) {
+        return new Promise((resolve) => {
+          const modal = document.getElementById('customModal');
+          const modalMessage = document.getElementById('modalMessage');
+          const modalInputContainer = document.getElementById('modalInputContainer');
+          modalMessage.textContent = message;
+          modalInputContainer.style.display = "none";
+          modal.style.display = "block";
+
+          const okBtn = document.getElementById('modalOk');
+          const cancelBtn = document.getElementById('modalCancel');
+          const modalClose = document.getElementById('modalClose');
+
+          cancelBtn.style.display = "none";
+
+          okBtn.onclick = () => {
+            modal.style.display = "none";
+            resolve();
+          };
+          modalClose.onclick = () => {
+            modal.style.display = "none";
+            resolve();
+          };
+        });
+      }
+
+      function customPrompt(message) {
+        return new Promise((resolve) => {
+          const modal = document.getElementById('customModal');
+          const modalMessage = document.getElementById('modalMessage');
+          const modalInputContainer = document.getElementById('modalInputContainer');
+          const modalInput = document.getElementById('modalInput');
+          modalMessage.textContent = message;
+          modalInputContainer.style.display = "block";
+          modal.style.display = "block";
+          modalInput.value = "";
+
+          const okBtn = document.getElementById('modalOk');
+          const cancelBtn = document.getElementById('modalCancel');
+          const modalClose = document.getElementById('modalClose');
+
+          cancelBtn.style.display = "inline-block";
+
+          okBtn.onclick = () => {
+            modal.style.display = "none";
+            resolve(modalInput.value);
+          };
+          cancelBtn.onclick = () => {
+            modal.style.display = "none";
+            resolve(null);
+          };
+          modalClose.onclick = () => {
+            modal.style.display = "none";
+            resolve(null);
+          };
+        });
+      }
 
       // Auth functions
       function handleLogin() {
@@ -291,7 +405,7 @@
               showMainContent();
               refreshAccount();
             } else {
-              alert('Login failed: ' + (data.error || 'Unknown error'));
+              customAlert('Login failed: ' + (data.error || 'Unknown error'));
             }
           });
       }
@@ -308,9 +422,9 @@
           .then(res => res.json())
           .then(data => {
             if (data.success) {
-              alert('Registration successful! Please login.');
+              customAlert('Registration successful! Please login.');
             } else {
-              alert('Registration failed: ' + (data.error || 'Unknown error'));
+              customAlert('Registration failed: ' + (data.error || 'Unknown error'));
             }
           });
       }
@@ -361,8 +475,7 @@
               sellBtn.textContent = item.for_sale ? 'Cancel Sale' : 'Sell';
               if (item.for_sale) {
                 sellBtn.onclick = () => cancelSale(item.id);
-              }
-              else {
+              } else {
                 sellBtn.onclick = () => sellItem(item.id);
               }
               const viewSecretBtn = document.createElement('button');
@@ -423,8 +536,9 @@
         })
           .then(handleResponse)
           .then(item => {
-            alert(`Created item: ${item.icon} ${item.name}`);
-            refreshAccount();
+            customAlert(`Created item: ${item.icon} ${item.name}`).then(() => {
+              refreshAccount();
+            });
           });
       }
 
@@ -441,9 +555,10 @@
           .then(handleResponse)
           .then(data => {
             if (data.success) {
-              alert('Item purchased!');
-              refreshAccount();
-              refreshMarket();
+              customAlert('Item purchased!').then(() => {
+                refreshAccount();
+                refreshMarket();
+              });
             }
           });
       }
@@ -451,46 +566,48 @@
       // View the secret of an owned item.
       function viewSecret(itemId) {
         let item = items.find(item => item.id == itemId);
-        alert(`Secret (do not share - it will let people take your item): ${item.item_secret}`);
+        customAlert(`Secret (do not share - it will let people take your item): ${item.item_secret}`);
       }
 
       // Mine tokens if cooldown has passed.
       function mineTokens() {
-        console.log('mining tokens');
         fetch('/api/mine_tokens', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } })
           .then(handleResponse)
           .then(data => {
-            alert(`Mined tokens! You now have ${data.tokens} tokens.`);
-            refreshAccount();
+            customAlert(`Mined tokens! You now have ${data.tokens} tokens.`).then(() => {
+              refreshAccount();
+            });
           })
           .catch(err => {
             if (err.remaining) {
-              alert(`Cooldown active, please wait ${Math.ceil(err.remaining / 60)} minutes.`);
+              customAlert(`Cooldown active, please wait ${Math.ceil(err.remaining / 60)} minutes.`);
             } else {
-              alert('Error mining tokens.');
+              customAlert('Error mining tokens.');
             }
           });
       }
 
       // List an owned item for sale at a user-specified price.
       function sellItem(itemId) {
-        const price = prompt("Enter sale price (tokens):");
-        if (!price) return;
-        fetch('/api/sell_item', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ item_id: itemId, price: parseInt(price) })
-        })
-          .then(handleResponse)
-          .then(data => {
-            if (data.success) {
-              alert('Item listed for sale!');
-              refreshAccount();
-              refreshMarket();
-            } else {
-              alert('Error listing item.');
-            }
-          });
+        customPrompt("Enter sale price (tokens):").then(price => {
+          if (!price) return;
+          fetch('/api/sell_item', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ item_id: itemId, price: parseInt(price) })
+          })
+            .then(handleResponse)
+            .then(data => {
+              if (data.success) {
+                customAlert('Item listed for sale!').then(() => {
+                  refreshAccount();
+                  refreshMarket();
+                });
+              } else {
+                customAlert('Error listing item.');
+              }
+            });
+        });
       }
 
       function cancelSale(itemId) {
@@ -502,40 +619,45 @@
           .then(handleResponse)
           .then(data => {
             if (data.success) {
-              alert('Sale cancelled!');
-              refreshAccount();
-              refreshMarket();
+              customAlert('Sale cancelled!').then(() => {
+                refreshAccount();
+                refreshMarket();
+              });
             } else {
-              alert('Error cancelling sale.');
+              customAlert('Error cancelling sale.');
             }
           });
       }
 
       // Take item
       function takeItem() {
-        const secret = prompt("Enter secret:");
-        if (!secret) return;
-        fetch('/api/take_item', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ item_secret: secret })
-        })
-          .then(handleResponse)
-          .then(data => {
-            if (data.success) {
-              alert('Item taken!');
-              refreshAccount();
-              refreshMarket();
-            } else {
-              alert('Error taking item.');
-            }
-          });
+        customPrompt("Enter secret:").then(secret => {
+          if (!secret) return;
+          fetch('/api/take_item', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ item_secret: secret })
+          })
+            .then(handleResponse)
+            .then(data => {
+              if (data.success) {
+                customAlert('Item taken!').then(() => {
+                  refreshAccount();
+                  refreshMarket();
+                });
+              } else {
+                customAlert('Error taking item.');
+              }
+            });
+        });
       }
 
       // Helper function for API responses
       function handleResponse(res) {
         if (!res.ok) {
-          return res.json().then(data => { throw data; });
+          return res.json().then(data => {
+            throw data;
+          });
         }
         return res.json();
       }
