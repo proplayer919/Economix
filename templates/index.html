@@ -547,6 +547,12 @@
         })
           .then(handleResponse)
           .then(item => {
+            if (!data.success) {
+              if (data.error) {
+                customAlert(`Error creating item: ${data.error}`);
+              }
+              return;
+            }
             customAlert(`Created item: ${item.icon} ${item.name}`).then(() => {
               refreshAccount();
             });
@@ -585,16 +591,15 @@
         fetch('/api/mine_tokens', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } })
           .then(handleResponse)
           .then(data => {
+            if (!data.success) {
+              if (data.error) {
+                customAlert(`Error mining tokens: ${data.error}`);
+              }
+              return;
+            }
             customAlert(`Mined tokens! You now have ${data.tokens} tokens.`).then(() => {
               refreshAccount();
             });
-          })
-          .catch(err => {
-            if (err.remaining) {
-              customAlert(`Cooldown active, please wait ${Math.ceil(err.remaining / 60)} minutes.`);
-            } else {
-              customAlert('Error mining tokens.');
-            }
           });
       }
 
@@ -680,13 +685,13 @@
 
       // Helper function for API responses
       function handleResponse(res) {
-        if (!res.ok) {
-          return res.json().then(data => {
+        return res.json().then(data => {
+          if (!res.ok) {
             customAlert('Error: ' + (data.error || 'Unknown error'));
             throw new Error(data.error || 'Unknown error');
-          });
-        }
-        return res.json();
+          }
+          return data;
+        });
       }
 
       // Event listeners
