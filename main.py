@@ -1,90 +1,141 @@
-from flask import Flask, request, jsonify, session, render_template
-from flask_cors import CORS
-from uuid import uuid4
+import os
+import json
 import time
 import random
-import json
-import os
+import logging
+import fcntl
+import threading
+from uuid import uuid4
+from pathlib import Path
+from logging.handlers import RotatingFileHandler
+from flask import Flask, request, jsonify, session, render_template
+from flask_cors import CORS
+from flask_wtf.csrf import CSRFProtect
+from waitress import serve
 
+from dotenv import load_dotenv
+load_dotenv()
+
+# Initialize Flask application
 app = Flask(__name__)
-CORS(app)
-app.secret_key = os.getenv('FLASK_SECRET_KEY')
+app.config.update(
+    SECRET_KEY=os.environ['FLASK_SECRET_KEY'],
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    WTF_CSRF_ENABLED=True,
+    WTF_CSRF_TIME_LIMIT=3600
+)
 
-# File paths for JSON
-USERS_FILE = '/var/data/users.json'
-ITEMS_FILE = '/var/data/items.json'
+# Security middleware
+CORS(app, origins=os.environ.get('CORS_ORIGINS', '').split(','))
+csrf = CSRFProtect(app)
 
-ITEM_CREATE_COOLDOWN = 60 # 60 seconds
-TOKEN_MINE_COOLDOWN = 60 * 10 # 10 minutes
+# Configure logging
+handler = RotatingFileHandler(
+    'app.log',
+    maxBytes=1024 * 1024 * 10,  # 10 MB
+    backupCount=5
+)
+handler.setFormatter(logging.Formatter(
+    '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+))
+app.logger.addHandler(handler)
+app.logger.setLevel(logging.INFO)
 
-# Helper functions to load/save JSON data.
-def load_json(filepath):
-    if os.path.exists(filepath):
-        with open(filepath, 'r') as f:
-            return json.load(f)
-    return {}
+# Configuration constants
+DATA_DIR = Path(os.environ.get('DATA_DIR', '/var/data'))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+USERS_FILE = DATA_DIR / 'users.json'
+ITEMS_FILE = DATA_DIR / 'items.json'
+ITEM_CREATE_COOLDOWN = int(os.environ.get('ITEM_CREATE_COOLDOWN', 60))
+TOKEN_MINE_COOLDOWN = int(os.environ.get('TOKEN_MINE_COOLDOWN', 600))
+MAX_ITEM_PRICE = 10000
+MIN_ITEM_PRICE = 1
 
-def save_json(filepath, data):
-    with open(filepath, 'w') as f:
-        json.dump(data, f, indent=4)
+# Item generation constants
+ADJECTIVES = ["Ancient", "Mystic", "Enchanted", "Cursed", "Legendary"]
+MATERIALS = ["Iron", "Gold", "Diamond", "Ruby", "Emerald", "Sapphire", "Opal"]
+NOUNS = ["Sword", "Shield", "Amulet", "Helmet", "Ring", "Boots", "Gloves"]
+SPECIAL = ["of the Gods", "of the Dark", "of the Light", "of the Stars"]
+ICONS = ["⚔️", "🛡️", "💍", "🏹", "🔮", "🧿", "🥇", "✨", "🔥", "⭐", "🚀"]
 
-def load_users():
-    return load_json(USERS_FILE)
+class JsonDatabase:
+    """Thread-safe JSON database handler with file locking"""
+    def __init__(self, filepath):
+        self.filepath = filepath
+        self.lock = threading.Lock()
 
-def save_users(users):
-    save_json(USERS_FILE, users)
+    def load(self):
+        """Load data from file with shared lock"""
+        with self.lock:
+            try:
+                if not self.filepath.exists():
+                    return {}
+                
+                with open(self.filepath, 'r') as f:
+                    fcntl.flock(f, fcntl.LOCK_SH)
+                    data = json.load(f)
+                    fcntl.flock(f, fcntl.LOCK_UN)
+                    return data
+            except (json.JSONDecodeError, PermissionError) as e:
+                app.logger.error(f"Error loading {self.filepath}: {str(e)}")
+                return {}
+            except Exception as e:
+                app.logger.critical(f"Critical error loading {self.filepath}: {str(e)}")
+                raise
 
-def load_items():
-    return load_json(ITEMS_FILE)
+    def save(self, data):
+        """Save data to file with exclusive lock"""
+        with self.lock:
+            try:
+                with open(self.filepath, 'w') as f:
+                    fcntl.flock(f, fcntl.LOCK_EX)
+                    json.dump(data, f, indent=4, separators=(',', ':'))
+                    fcntl.flock(f, fcntl.LOCK_UN)
+            except Exception as e:
+                app.logger.critical(f"Error saving {self.filepath}: {str(e)}")
+                raise
 
-def save_items(items):
-    save_json(ITEMS_FILE, items)
+# Initialize databases
+users_db = JsonDatabase(USERS_FILE)
+items_db = JsonDatabase(ITEMS_FILE)
 
-# Load databases at startup.
-users = load_users()  # key: user_id, value: dict with tokens, last_item_time, items list
-items = load_items()  # key: item_id, value: dict with name, icon, owner, sale status, price, created_at
+def generate_item():
+    """Generate a new random item with safety checks"""
+    try:
+        name = f"{random.choice(ADJECTIVES)} {random.choice(MATERIALS)} " \
+               f"{random.choice(NOUNS)} {random.choice(SPECIAL)} #{random.randint(1, 9999)}"
+        return {
+            "id": str(uuid4()),
+            "item_secret": str(uuid4()),
+            "name": name,
+            "icon": random.choice(ICONS),
+            "for_sale": False,
+            "price": 0,
+            "owner": None,
+            "created_at": int(time.time())
+        }
+    except Exception as e:
+        app.logger.error(f"Item generation failed: {str(e)}")
+        raise
 
-# Automatically assign a unique user id if one doesn't exist.
 @app.before_request
 def assign_user():
-    global users
+    """Assign user ID with thread-safe session management"""
     if 'user_id' not in session:
         user_id = str(uuid4())
+        session.permanent = True
         session['user_id'] = user_id
+        
+        users = users_db.load()
         users[user_id] = {
-            'tokens': 100,      # Starting tokens for the user.
+            'tokens': 100,
             'last_item_time': 0,
             'last_mine_time': 0,
             'items': []
         }
-        save_users(users)
-
-# Data used for random item generation.
-adjectives = ["Ancient", "Mystic", "Enchanted", "Cursed", "Legendary"]
-materials = ["Iron", "Gold", "Diamond", "Ruby", "Emerald", "Sapphire", "Opal", "Mythril", "Adamantium"]
-nouns = ["Sword", "Shield", "Amulet", "Helmet", "Ring", "Boots", "Gloves"]
-special = ["of the Gods", "of the Dark", "of the Light", "of the Stars", "of the Moon", "of the Sun"]
-icons = ["⚔️", "🛡️", "💍", "🏹", "🔮", "🧿", "🥇", "✨", "🔥", "⭐", "🚀"]
-
-def generate_item():
-    """Generate a new item with a random name and icon."""
-    try:
-        name = f"{random.choice(adjectives)} {random.choice(materials)} {random.choice(nouns)} {random.choice(special)} #{random.randint(1, 9999)}"
-        icon = random.choice(icons)
-        item_id = str(uuid4())
-        item_secret = str(uuid4())
-    except Exception as e:
-        raise RuntimeError(f"Error generating item: {str(e)}")
-
-    return {
-        "id": item_id,
-        "item_secret": item_secret,
-        "name": name,
-        "icon": icon,
-        "for_sale": False,
-        "price": 0,
-        "created_at": int(time.time())
-    }
+        users_db.save(users)
 
 @app.route('/')
 def index():
@@ -92,8 +143,8 @@ def index():
 
 @app.route('/api/account', methods=['GET'])
 def get_account():
-    user_id = session['user_id']
-    user = users.get(user_id)
+    users = users_db.load()
+    user = users.get(session['user_id'])
     return jsonify({
         'tokens': user['tokens'],
         'items': user['items'],
@@ -102,136 +153,137 @@ def get_account():
     })
 
 @app.route('/api/create_item', methods=['POST'])
+@csrf.exempt
 def create_item():
-    global users, items
+    users = users_db.load()
+    items = items_db.load()
+    
     user_id = session['user_id']
-    user = users.get(user_id)
+    user = users[user_id]
     now = time.time()
+
     if now - user['last_item_time'] < ITEM_CREATE_COOLDOWN:
         remaining = ITEM_CREATE_COOLDOWN - (now - user['last_item_time'])
-        return jsonify({"error": "Cooldown active", "remaining": remaining}), 400
+        return jsonify({"error": "Cooldown active", "remaining": remaining}), 429
 
     if user['tokens'] < 10:
-        return jsonify({"error": "Not enough tokens"}), 400
+        return jsonify({"error": "Not enough tokens"}), 402
 
-    new_item = generate_item()
-    new_item['owner'] = user_id
-    items[new_item['id']] = new_item
-    user['items'].append(new_item)
-    user['last_item_time'] = now
-    user['tokens'] -= 10
+    try:
+        new_item = generate_item()
+        new_item['owner'] = user_id
+        items[new_item['id']] = new_item
+        user['items'].append(new_item)
+        user['last_item_time'] = now
+        user['tokens'] -= 10
+        
+        items_db.save(items)
+        users_db.save(users)
+        return jsonify(new_item)
+    except Exception as e:
+        app.logger.error(f"Item creation failed: {str(e)}")
+        return jsonify({"error": "Item creation failed"}), 500
 
-    # Save changes to JSON files.
-    save_items(items)
-    save_users(users)
-    
-    return jsonify(new_item)
-  
 @app.route('/api/mine_tokens', methods=['POST'])
+@csrf.exempt
 def mine_tokens():
+    users = users_db.load()
     user_id = session['user_id']
-    user = users.get(user_id)
+    user = users[user_id]
     now = time.time()
+
     if now - user['last_mine_time'] < TOKEN_MINE_COOLDOWN:
         remaining = TOKEN_MINE_COOLDOWN - (now - user['last_mine_time'])
-        return jsonify({"error": "Cooldown active", "remaining": remaining}), 400
+        return jsonify({"error": "Cooldown active", "remaining": remaining}), 429
 
-    tokens_mined = random.randint(5, 10)
-    user['tokens'] += tokens_mined
+    user['tokens'] += random.randint(5, 10)
     user['last_mine_time'] = now
-
-    save_users(users)
-    return jsonify({"success": True, "tokens_mined": tokens_mined})
-  
-@app.route('/api/take_item', methods=['POST'])
-def take_item():
-    data = request.get_json()
-    item_secret = data.get('item_secret')
-    new_owner = session['user_id']
-    if not item_secret:
-        return jsonify({"error": "Missing item_secret"}), 400
-    
-    if users[new_owner]['tokens'] < 10:
-        return jsonify({"error": "Not enough tokens"}), 400
-    
-    for item in items.values():
-        if item['item_secret'] == item_secret:
-            old_owner = item['owner']
-            users[old_owner]['items'] = [i for i in users[old_owner]['items'] if i['id'] != item['id']]
-            users[new_owner]['items'].append(item)
-            users[new_owner]['tokens'] -= 10
-            save_users(users)
-            item['owner'] = new_owner
-            item['item_secret'] = str(uuid4())
-            save_items(items)
-            return jsonify({"success": True, "item": item})
-    
-    return jsonify({"error": "Item not found"}), 404
+    users_db.save(users)
+    return jsonify({"success": True, "tokens": user['tokens']})
 
 @app.route('/api/market', methods=['GET'])
 def market():
+    users = users_db.load()
+    items = items_db.load()
     user_id = session['user_id']
-    market_items = [item for item in items.values() if item['for_sale'] and item['owner'] != user_id]
-    market_items = [{key: value for key, value in item.items() if key != 'item_secret'} for item in market_items]
+    
+    market_items = [
+        {k: v for k, v in item.items() if k != 'item_secret'}
+        for item in items.values()
+        if item['for_sale'] and item['owner'] != user_id
+    ]
     return jsonify(market_items)
 
 @app.route('/api/sell_item', methods=['POST'])
+@csrf.exempt
 def sell_item():
-    global users, items
     data = request.get_json()
     item_id = data.get('item_id')
     price = data.get('price')
+
     if not item_id or price is None:
-        return jsonify({"error": "Missing item_id or price"}), 400
+        return jsonify({"error": "Missing parameters"}), 400
 
+    try:
+        price = int(price)
+        if not MIN_ITEM_PRICE <= price <= MAX_ITEM_PRICE:
+            raise ValueError
+    except ValueError:
+        return jsonify({"error": f"Invalid price (must be {MIN_ITEM_PRICE}-{MAX_ITEM_PRICE})"}), 400
+
+    users = users_db.load()
+    items = items_db.load()
     user_id = session['user_id']
-    item = items.get(item_id)
-    if not item or item['owner'] != user_id:
-        return jsonify({"error": "Item not found or not owned"}), 404
 
-    # List the item for sale at the specified price.
-    item['for_sale'] = True
-    item['price'] = price
+    if item_id not in items or items[item_id]['owner'] != user_id:
+        return jsonify({"error": "Item not found"}), 404
 
-    save_items(items)
-    return jsonify({"success": True, "item": item})
+    items[item_id]['for_sale'] = True
+    items[item_id]['price'] = price
+    items_db.save(items)
+    return jsonify({"success": True})
 
 @app.route('/api/buy_item', methods=['POST'])
+@csrf.exempt
 def buy_item():
-    global users, items
     data = request.get_json()
     item_id = data.get('item_id')
+
     if not item_id:
         return jsonify({"error": "Missing item_id"}), 400
 
-    user_id = session['user_id']
-    buyer = users.get(user_id)
-    item = items.get(item_id)
-    if not item or not item['for_sale']:
-        return jsonify({"error": "Item not available"}), 404
-    if buyer['tokens'] < item['price']:
-        return jsonify({"error": "Not enough tokens"}), 400
+    users = users_db.load()
+    items = items_db.load()
+    buyer_id = session['user_id']
 
-    # Process the purchase: transfer tokens and change ownership.
+    if item_id not in items or not items[item_id]['for_sale']:
+        return jsonify({"error": "Item not available"}), 404
+
+    item = items[item_id]
+    if buyer_id == item['owner']:
+        return jsonify({"error": "Cannot buy your own item"}), 400
+
+    buyer = users[buyer_id]
+    if buyer['tokens'] < item['price']:
+        return jsonify({"error": "Not enough tokens"}), 402
+
     seller_id = item['owner']
-    seller = users.get(seller_id)
+    seller = users[seller_id]
+
+    # Transfer tokens
     buyer['tokens'] -= item['price']
     seller['tokens'] += item['price']
 
-    # Remove the item from the seller's list.
-    seller['items'] = [i for i in seller['items'] if i['id'] != item_id]
-
-    # Transfer ownership to the buyer and remove sale status.
-    item['owner'] = user_id
+    # Transfer ownership
+    seller['items'].remove(item_id)
+    buyer['items'].append(item_id)
+    item['owner'] = buyer_id
     item['for_sale'] = False
     item['price'] = 0
-    buyer['items'].append(item)
 
-    # Save changes.
-    save_users(users)
-    save_items(items)
-
-    return jsonify({"success": True, "item": item})
+    items_db.save(items)
+    users_db.save(users)
+    return jsonify({"success": True, "item": item_id})
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    serve(app, host='0.0.0.0', port=5000, threads=4)
