@@ -49,11 +49,16 @@ MAX_ITEM_PRICE = 10000
 MIN_ITEM_PRICE = 1
 
 # Item generation constants
-ADJECTIVES = ["Ancient", "Mystic", "Enchanted", "Cursed", "Legendary"]
-MATERIALS = ["Iron", "Gold", "Diamond", "Ruby", "Emerald", "Sapphire", "Opal"]
-NOUNS = ["Sword", "Shield", "Amulet", "Helmet", "Ring", "Boots", "Gloves"]
-SPECIAL = ["of the Gods", "of the Dark", "of the Light", "of the Stars"]
-ICONS = ["⚔️", "🛡️", "💍", "🏹", "🔮", "🧿", "🥇", "✨", "🔥", "⭐", "🚀"]
+with open('words/adjectives.json', 'r') as f:
+    ADJECTIVES = json.load(f)
+with open('words/materials.json', 'r') as f:
+    MATERIALS = json.load(f)
+with open('words/nouns.json', 'r') as f:
+    NOUNS = json.load(f)
+with open('words/special.json', 'r') as f:
+    SPECIAL = json.load(f)
+with open('words/icons.json', 'r') as f:
+    ICONS = json.load(f)
 
 class JsonDatabase:
     """Thread-safe JSON database handler with file locking"""
