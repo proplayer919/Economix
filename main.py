@@ -140,9 +140,20 @@ def index():
     return render_template('index.html')
 
 @app.route('/api/account', methods=['GET'])
+@csrf.exempt
 def get_account():
     users = users_db.load()
     user = users.get(session['user_id'])
+    if user is None:
+        user = {
+            'tokens': 100,
+            'user_secret': str(uuid4()),
+            'last_item_time': 0,
+            'last_mine_time': 0,
+            'items': []
+        }
+        users[session['user_id']] = user
+        users_db.save(users)
     return jsonify({
         'tokens': user['tokens'],
         'items': user['items'],
