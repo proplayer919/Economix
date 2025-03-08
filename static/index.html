@@ -5,7 +5,246 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Economix</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      :root {
+        --primary: #2563eb;
+        --secondary: #3b82f6;
+        --success: #22c55e;
+        --danger: #ef4444;
+        --background: #f8fafc;
+        --card-bg: #ffffff;
+        --text: #1e293b;
+        --border: #e2e8f0;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+      }
+
+      body {
+        background: var(--background);
+        color: var(--text);
+        line-height: 1.6;
+        min-height: 100vh;
+        padding: 2rem;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      /* Auth Forms */
+      .card-container {
+        display: grid;
+        gap: 2rem;
+        max-width: 800px;
+        margin: 2rem auto;
+      }
+
+      .card {
+        background: var(--card-bg);
+        padding: 2rem;
+        border-radius: 1rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+
+      .auth-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .auth-form h2 {
+        color: var(--primary);
+        margin-bottom: 0.5rem;
+      }
+
+      /* Main Content */
+      #mainContent {
+        display: grid;
+        gap: 2rem;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      }
+
+      .card {
+        background: var(--card-bg);
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--border);
+      }
+
+      .card-header {
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--border);
+      }
+
+      /* Buttons */
+      .btn {
+        padding: 0.75rem 1.5rem;
+        margin: 5px;
+        border: none;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .btn-primary {
+        background: var(--primary);
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: var(--secondary);
+      }
+
+      .btn-success {
+        background: var(--success);
+        color: white;
+      }
+
+      .btn-danger {
+        background: var(--danger);
+        color: white;
+      }
+
+      /* Inputs */
+      input {
+        padding: 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        width: 100%;
+        transition: border-color 0.2s ease;
+      }
+
+      input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      /* Lists */
+      .item-list {
+        display: grid;
+        gap: 0.75rem;
+        list-style: none;
+      }
+
+      .list-item {
+        background: var(--card-bg);
+        padding: 1rem;
+        border-radius: 0.5rem;
+        border: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        background: var(--background);
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+
+      /* Cooldown indicators */
+      .cooldown {
+        color: #64748b;
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+      }
+
+      /* Navigation */
+      .navbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding: 1rem 0;
+        border-bottom: 2px solid var(--border);
+      }
+
+      .user-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      @media (max-width: 768px) {
+        body {
+          padding: 1rem;
+        }
+
+        .auth-container {
+          grid-template-columns: 1fr;
+        }
+
+        #mainContent {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* Custom Modal Styles */
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.4);
+      }
+
+      .modal-content {
+        background-color: #fff;
+        margin: 15% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%;
+        max-width: 400px;
+        border-radius: 10px;
+        position: relative;
+      }
+
+      .close {
+        color: #aaa;
+        position: absolute;
+        right: 10px;
+        top: 5px;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      .modal-actions {
+        text-align: right;
+        margin-top: 1rem;
+      }
+
+      a {
+        text-decoration: underline;
+        color: var(--text);
+      }
+
+      .footer {
+        text-align: center;
+        margin-top: 2rem;
+      }
+    </style>
   </head>
 
   <body>
@@ -14,7 +253,7 @@
         <div class="card-container">
           <div class="card">
             <div class="auth-form">
-              <h2>Welcome to Economix v1.4</h2>
+              <h2>Welcome to Economix v1.5</h2>
               <input type="text" id="loginUsername" placeholder="Username" />
               <input type="password" id="loginPassword" placeholder="Password" />
               <button class="btn btn-primary" onclick="handleLogin()">Login</button>
@@ -33,7 +272,7 @@
 
       <div id="mainContent" style="display: none;">
         <div class="navbar">
-          <h1>Economix v1.4</h1>
+          <h1>Economix v1.5</h1>
           <div class="user-info">
             <div class="card">
               <p>Welcome, <strong id="usernameDisplay"></strong>!</p>
@@ -58,18 +297,22 @@
             </div>
           </div>
 
+          <!-- Inventory with Pagination -->
           <div class="card">
             <div class="card-header">
               <h2>My Items</h2>
             </div>
             <ul class="item-list" id="itemsList"></ul>
+            <div id="inventoryPagination" style="margin-top: 10px; text-align: center;"></div>
           </div>
 
+          <!-- Marketplace with Pagination -->
           <div class="card">
             <div class="card-header">
               <h2>Marketplace</h2>
             </div>
             <ul class="item-list" id="marketList"></ul>
+            <div id="marketplacePagination" style="margin-top: 10px; text-align: center;"></div>
           </div>
         </div>
       </div>
@@ -99,9 +342,10 @@
       let items = [];
       let account = {};
       let token = null;
-
-      const ITEM_CREATE_COOLDOWN = 60;
-      const TOKEN_MINE_COOLDOWN = 600;
+      // Pagination variables
+      let inventoryPage = 1;
+      let marketPage = 1;
+      const itemsPerPage = 5;
 
       // Custom modal functions
       function customAlert(message) {
@@ -210,16 +454,6 @@
         document.getElementById('mainContent').style.display = 'block';
       }
 
-      // Auth check on page load
-      document.addEventListener('DOMContentLoaded', () => {
-        token = localStorage.getItem('token');
-        if (token) {
-          showMainContent();
-          refreshAccount();
-          refreshMarket();
-        }
-      });
-
       // Modified API functions with auth headers
       function refreshAccount() {
         const token = localStorage.getItem('token');
@@ -244,30 +478,12 @@
             items = data.items;
             account = data;
 
-            // Update items list
-            const itemsList = document.getElementById('itemsList');
-            itemsList.innerHTML = '';
-            data.items.forEach(item => {
-              const li = document.createElement('li');
-              li.textContent = `${item.icon} ${item.name} ${item.for_sale ? "(For Sale)" : ""}`;
-              const sellBtn = document.createElement('button');
-              sellBtn.classList.add('btn');
-              sellBtn.classList.add('btn-secondary');
-              sellBtn.textContent = item.for_sale ? 'Cancel Sale' : 'Sell';
-              if (item.for_sale) {
-                sellBtn.onclick = () => cancelSale(item.id);
-              } else {
-                sellBtn.onclick = () => sellItem(item.id);
-              }
-              const viewSecretBtn = document.createElement('button');
-              viewSecretBtn.classList.add('btn');
-              viewSecretBtn.classList.add('btn-danger');
-              viewSecretBtn.textContent = 'View Secret';
-              viewSecretBtn.onclick = () => viewSecret(item.id);
-              li.appendChild(sellBtn);
-              li.appendChild(viewSecretBtn);
-              itemsList.appendChild(li);
-            });
+            // Reset inventory page if items length changes significantly
+            if ((inventoryPage - 1) * itemsPerPage >= items.length) {
+              inventoryPage = 1;
+            }
+            // Render inventory with pagination
+            renderInventory(items);
 
             // Update cooldowns
             const now = Date.now() / 1000;
@@ -290,22 +506,130 @@
         })
           .then(res => res.json())
           .then(data => {
-            const marketList = document.getElementById('marketList');
-            marketList.innerHTML = '';
-            data.forEach(item => {
-              const li = document.createElement('li');
-              li.textContent = `${item.icon} ${item.name} - Price: ${item.price} tokens - Sold by: ${item.owner}`;
-              if (item.owner !== account.username) {
-                const buyBtn = document.createElement('button');
-                buyBtn.classList.add('btn');
-                buyBtn.classList.add('btn-primary');
-                buyBtn.textContent = 'Buy';
-                buyBtn.onclick = () => buyItem(item.id);
-                li.appendChild(buyBtn);
-              }
-              marketList.appendChild(li);
-            });
+            // Reset market page if necessary
+            if ((marketPage - 1) * itemsPerPage >= data.length) {
+              marketPage = 1;
+            }
+            renderMarketplace(data);
           });
+      }
+
+      // Render inventory items with pagination
+      function renderInventory(inventoryItems) {
+        const itemsList = document.getElementById('itemsList');
+        itemsList.innerHTML = '';
+
+        const startIndex = (inventoryPage - 1) * itemsPerPage;
+        const pagedItems = inventoryItems.slice(startIndex, startIndex + itemsPerPage);
+
+        pagedItems.forEach(item => {
+          const li = document.createElement('li');
+          li.textContent = `${item.icon} ${item.name} ${item.for_sale ? "(For Sale)" : ""}`;
+
+          const sellBtn = document.createElement('button');
+          sellBtn.classList.add('btn', 'btn-secondary');
+          sellBtn.textContent = item.for_sale ? 'Cancel Sale' : 'Sell';
+          sellBtn.onclick = item.for_sale ? () => cancelSale(item.id) : () => sellItem(item.id);
+
+          const viewSecretBtn = document.createElement('button');
+          viewSecretBtn.classList.add('btn', 'btn-danger');
+          viewSecretBtn.textContent = 'View Secret';
+          viewSecretBtn.onclick = () => viewSecret(item.id);
+
+          li.appendChild(sellBtn);
+          li.appendChild(viewSecretBtn);
+          itemsList.appendChild(li);
+        });
+
+        // Update pagination controls for inventory
+        const paginationContainer = document.getElementById('inventoryPagination');
+        paginationContainer.innerHTML = '';
+        const totalPages = Math.ceil(inventoryItems.length / itemsPerPage);
+
+        const prevBtn = document.createElement('button');
+        prevBtn.textContent = 'Prev';
+        prevBtn.classList.add('btn', 'btn-primary');
+        prevBtn.disabled = inventoryPage === 1;
+        prevBtn.onclick = () => {
+          if (inventoryPage > 1) {
+            inventoryPage--;
+            renderInventory(inventoryItems);
+          }
+        };
+
+        const nextBtn = document.createElement('button');
+        nextBtn.textContent = 'Next';
+        nextBtn.classList.add('btn', 'btn-primary');
+        nextBtn.disabled = inventoryPage >= totalPages;
+        nextBtn.onclick = () => {
+          if (inventoryPage < totalPages) {
+            inventoryPage++;
+            renderInventory(inventoryItems);
+          }
+        };
+
+        const pageInfo = document.createElement('span');
+        pageInfo.textContent = ` Page ${inventoryPage} of ${totalPages} `;
+
+        paginationContainer.appendChild(prevBtn);
+        paginationContainer.appendChild(pageInfo);
+        paginationContainer.appendChild(nextBtn);
+      }
+
+      // Render marketplace items with pagination
+      function renderMarketplace(marketItems) {
+        const marketList = document.getElementById('marketList');
+        marketList.innerHTML = '';
+
+        const startIndex = (marketPage - 1) * itemsPerPage;
+        const pagedItems = marketItems.slice(startIndex, startIndex + itemsPerPage);
+
+        pagedItems.forEach(item => {
+          const li = document.createElement('li');
+          li.textContent = `${item.icon} ${item.name} - Price: ${item.price} tokens - Sold by: ${item.owner}`;
+          if (item.owner !== account.username) {
+            const buyBtn = document.createElement('button');
+            buyBtn.classList.add('btn', 'btn-primary');
+            buyBtn.textContent = 'Buy';
+            buyBtn.onclick = () => buyItem(item.id);
+            li.appendChild(buyBtn);
+          }
+          marketList.appendChild(li);
+        });
+
+        // Update pagination controls for marketplace
+        const paginationContainer = document.getElementById('marketplacePagination');
+        paginationContainer.innerHTML = '';
+        const totalPages = Math.ceil(marketItems.length / itemsPerPage);
+
+        const prevBtn = document.createElement('button');
+        prevBtn.textContent = 'Prev';
+        prevBtn.classList.add('btn', 'btn-primary');
+        prevBtn.disabled = marketPage === 1;
+        prevBtn.onclick = () => {
+          if (marketPage > 1) {
+            marketPage--;
+            renderMarketplace(marketItems);
+          }
+        };
+
+        const nextBtn = document.createElement('button');
+        nextBtn.textContent = 'Next';
+        nextBtn.classList.add('btn', 'btn-primary');
+        nextBtn.disabled = marketPage >= totalPages;
+        nextBtn.onclick = () => {
+          if (marketPage < totalPages) {
+            marketPage++;
+            renderMarketplace(marketItems);
+          }
+        };
+
+        const pageInfo = document.createElement('span');
+        pageInfo.textContent = ` Page ${marketPage} of ${totalPages} `;
+
+        paginationContainer.appendChild(prevBtn);
+        paginationContainer.appendChild(pageInfo);
+        paginationContainer.appendChild(nextBtn);
       }
 
       // Modified API call examples (add similar headers to all)
@@ -318,7 +642,7 @@
           .then(res => res.json())
           .then(item => {
             if (item.error) {
-              customAlert(`Error creating item: ${data.error}`);
+              customAlert(`Error creating item: ${item.error}`);
               return;
             }
             customAlert(`Created item: ${item.icon} ${item.name}`).then(() => {
@@ -457,7 +781,7 @@
         localStorage.removeItem('token');
       });
 
-      // Interval
+      // Interval to refresh account and market data
       setInterval(() => {
         if (account.username) {
           refreshAccount();
