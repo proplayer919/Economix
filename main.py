@@ -306,9 +306,9 @@ def lookup_item():
     
     return jsonify({"item": item_data})
   
-@app.route('/api/copy_account', methods=['POST'])
+@app.route('/api/restore_account', methods=['POST'])
 @csrf.exempt
-def copy_account():
+def restore_account():
     data = request.get_json()
     backup_code = data.get('backup_code')
 
