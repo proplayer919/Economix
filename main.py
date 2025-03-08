@@ -222,7 +222,7 @@ def get_account():
 
     return jsonify({
         'username': username,
-        'admin': user['admin'],
+        'admin': user.get('admin', False),
         'tokens': user['tokens'],
         'items': user_items,
         'last_item_time': user['last_item_time'],
