@@ -13,6 +13,7 @@ from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 from waitress import serve
+from functools import wraps
 
 # Initialize Flask application
 app = Flask(__name__)
@@ -135,6 +136,22 @@ def authenticate_user():
             request.username = username
             return
     return jsonify({"error": "Invalid token"}), 401
+  
+def requires_admin(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({"error": "Missing or invalid Authorization header"}), 401
+        token = auth_header.split(' ')[1]
+        users = users_db.load()
+        for username, user_data in users.items():
+            if user_data.get('token') == token:
+                if user_data.get('admin', False):
+                    return f(*args, **kwargs)
+                return jsonify({"error": "Admin privileges required"}), 403
+        return jsonify({"error": "Invalid token"}), 401
+    return decorated
 
 @app.route('/')
 def index():
@@ -157,6 +174,7 @@ def register():
     hashed_password = generate_password_hash(password)
     users[username] = {
         'password_hash': hashed_password,
+        'admin': False,
         'tokens': 100,
         'last_item_time': 0,
         'last_mine_time': 0,
@@ -204,11 +222,26 @@ def get_account():
 
     return jsonify({
         'username': username,
+        'admin': user['admin'],
         'tokens': user['tokens'],
         'items': user_items,
         'last_item_time': user['last_item_time'],
         'last_mine_time': user['last_mine_time']
     })
+    
+@app.route('/api/reset_cooldowns', methods=['POST'])
+@csrf.exempt
+@requires_admin
+def reset_cooldowns():
+    users = users_db.load()
+    username = request.username
+    user = users.get(username)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    user['last_item_time'] = 0
+    user['last_mine_time'] = 0
+    users_db.save(users)
+    return jsonify({"success": True})
 
 @app.route('/api/create_item', methods=['POST'])
 @csrf.exempt

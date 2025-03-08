@@ -235,6 +235,11 @@
         text-align: right;
         margin-top: 1rem;
       }
+
+      a {
+        text-decoration: underline;
+        color: var(--text);
+      }
     </style>
   </head>
 
@@ -267,6 +272,7 @@
           <div class="user-info">
             <div class="card">
               <p>Welcome, <strong id="usernameDisplay"></strong>!</p>
+              <p id="roleDisplay"></p>
               <p>Tokens: <strong id="tokens">0</strong></p>
             </div>
             <button class="btn btn-danger" id="logout">Logout</button>
@@ -460,6 +466,11 @@
 
             document.getElementById('tokens').textContent = data.tokens;
             document.getElementById('usernameDisplay').textContent = data.username;
+            if (data.admin) {
+              document.getElementById('roleDisplay').innerHTML = `You are an <strong>Admin</strong>`;
+            } else {
+              document.getElementById('roleDisplay').innerHTML = `You are a <strong>User</strong>`;
+            }
             items = data.items;
             account = data;
 
@@ -492,13 +503,13 @@
             const now = Date.now() / 1000;
             const remaining = ITEM_CREATE_COOLDOWN - (now - data.last_item_time);
             const cooldownEl = document.getElementById('cooldown');
-            cooldownEl.textContent = remaining > 0 ?
-              `Item creation cooldown: ${Math.ceil(remaining)}s remaining` : '';
+            cooldownEl.innerHTML = remaining > 0 ?
+              `Item creation cooldown: ${Math.ceil(remaining)}s remaining.${account.admin ? ` <a href="#" onclick="resetCooldown()">Skip? (Admin)</a>` : ''}`: '';
 
             const mineRemaining = TOKEN_MINE_COOLDOWN - (now - data.last_mine_time);
             const mineCooldownEl = document.getElementById('mineCooldown');
-            mineCooldownEl.textContent = mineRemaining > 0 ?
-              `Mining cooldown: ${Math.ceil(mineRemaining / 60)}m remaining` : '';
+            mineCooldownEl.innerHTML = mineRemaining > 0 ?
+              `Mining cooldown: ${Math.ceil(mineRemaining / 60)}m remaining.${account.admin ? ` <a href="#" onclick="resetCooldown()">Skip? (Admin)</a>` : ''}` : '';
           });
       }
 
@@ -652,11 +663,27 @@
         });
       }
 
+      // Reset cooldown
+      function resetCooldown() {
+        fetch('/api/reset_cooldowns', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } })
+          .then(handleResponse)
+          .then(data => {
+            if (data.success) {
+              customAlert('Cooldown reset!').then(() => {
+                refreshAccount();
+              });
+            } else {
+              customAlert('Error resetting cooldown.');
+            }
+          });
+      }
+
       // Helper function for API responses
       function handleResponse(res) {
         if (!res.ok) {
           return res.json().then(data => {
-            throw data;
+            customAlert('Error: ' + (data.error || 'Unknown error'));
+            throw new Error(data.error || 'Unknown error');
           });
         }
         return res.json();
