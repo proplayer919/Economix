@@ -113,13 +113,16 @@
               itemsList.innerHTML = '';
               data.items.forEach(item => {
                 const li = document.createElement('li');
-                li.textContent = `${item.icon} ${item.name}`;
+                li.textContent = `${item.icon} ${item.name} ${item.for_sale ? "(For Sale)" : ""}`;
                 const sellBtn = document.createElement('button');
-                sellBtn.textContent = 'Sell';
+                sellBtn.textContent = item.for_sale ? 'Cancel Sale' : 'Sell';
                 sellBtn.onclick = () => sellItem(item.id);
                 const viewSecretBtn = document.createElement('button');
                 viewSecretBtn.textContent = 'View Secret';
                 viewSecretBtn.onclick = () => viewSecret(item.id);
+                const viewIdBtn = document.createElement('button');
+                viewIdBtn.textContent = 'View ID';
+                viewIdBtn.onclick = () => alert('Item ID: ' + item.id);
                 li.appendChild(sellBtn);
                 li.appendChild(viewSecretBtn);
                 itemsList.appendChild(li);

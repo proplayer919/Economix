@@ -235,8 +235,12 @@ def sell_item():
     if item_id not in items or items[item_id]['owner'] != user_id:
         return jsonify({"error": "Item not found"}), 404
 
-    items[item_id]['for_sale'] = True
-    items[item_id]['price'] = price
+    if items[item_id]['for_sale']:
+        items[item_id]['for_sale'] = False
+        items[item_id]['price'] = 0
+    else:
+        items[item_id]['for_sale'] = True
+        items[item_id]['price'] = price
     items_db.save(items)
     return jsonify({"success": True})
 
@@ -281,6 +285,24 @@ def buy_item():
     items_db.save(items)
     users_db.save(users)
     return jsonify({"success": True, "item": item_id})
+  
+@app.route('/api/lookup_item', methods=['GET'])
+def lookup_item():
+    item_id = request.args.get('item_id')
+
+    if not item_id:
+        return jsonify({"error": "Missing item_id"}), 400
+
+    items = items_db.load()
+    item = items.get(item_id)
+
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+
+    # Exclude the 'item_secret' from the response
+    item_data = {k: v for k, v in item.items() if k != 'item_secret'}
+    
+    return jsonify({"item": item_data})
 
 if __name__ == '__main__':
     serve(app, host='0.0.0.0', port=5000, threads=4)
