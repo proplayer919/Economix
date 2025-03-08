@@ -42,6 +42,8 @@ app.logger.setLevel(logging.INFO)
 # Configuration constants
 DATA_DIR = Path(os.environ.get('DATA_DIR', 'data'))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+CHAT_DIR = DATA_DIR / 'chats'
+CHAT_DIR.mkdir(parents=True, exist_ok=True)
 USERS_FILE = DATA_DIR / 'users.json'
 ITEMS_FILE = DATA_DIR / 'items.json'
 ITEM_CREATE_COOLDOWN = int(os.environ.get('ITEM_CREATE_COOLDOWN', 60))
@@ -56,10 +58,8 @@ with open('words/materials.json', 'r') as f:
     MATERIALS = json.load(f)
 with open('words/nouns.json', 'r') as f:
     NOUNS = json.load(f)
-with open('words/special.json', 'r') as f:
-    SPECIAL = json.load(f)
-with open('words/icons.json', 'r') as f:
-    ICONS = json.load(f)
+with open('words/suffixes.json', 'r') as f:
+    SUFFIXES = json.load(f)
 
 class JsonDatabase:
     """Thread-safe JSON database handler with file locking"""
@@ -97,21 +97,71 @@ class JsonDatabase:
             except Exception as e:
                 app.logger.critical(f"Error saving {self.filepath}: {str(e)}")
                 raise
+              
+class ChatRoom:
+    def __init__(self, name, public=True, allowed_users=[]):
+        self.name = name
+        self.messages = []
+        self.database = JsonDatabase(CHAT_DIR / f"{name}.json")
+        self.public = public
+        self.allowed_users = allowed_users
+        
+    def is_allowed(self, username):
+        if self.public:
+            return True
+        return username in self.allowed_users
+        
+    def add_message(self, username, message):
+        self.messages.append({"username": username, "message": message})
+        self.database.save(self.messages)
+        
+    def get_messages(self):
+        self.messages = self.database.load()
+        return self.messages
+    
+    def clear_messages(self):
+        self.messages = []
+        self.database.save(self.messages)
 
 # Initialize databases
 users_db = JsonDatabase(USERS_FILE)
 items_db = JsonDatabase(ITEMS_FILE)
 
+# Initialize chat rooms
+chat_rooms = {
+    'global': ChatRoom('global', public=True),
+}
+
 def generate_item(owner):
     """Generate a new random item with safety checks"""
+    def weighted_choice(items, special_case=False):
+        """
+        Selects a random item from a dictionary where values represent weights.
+        
+        :param items: dict - A dictionary where keys are items and values are their weights.
+        :return: str - A randomly selected key based on weights.
+        """
+        choices, weights = zip(*items.items())
+        if special_case:
+            choices = list(items.keys())
+            weights = []
+            for choice in choices:
+                weights.append(items[choice]["rarity"])
+        return random.choices(choices, weights=weights, k=1)[0]
+    
     try:
-        name = f"{random.choice(ADJECTIVES)} {random.choice(MATERIALS)} " \
-               f"{random.choice(NOUNS)} {random.choice(SPECIAL)} #{random.randint(1, 9999)}"
+        noun = weighted_choice(NOUNS, special_case=True)
         return {
             "id": str(uuid4()),
             "item_secret": str(uuid4()),
-            "name": name,
-            "icon": random.choice(ICONS),
+            "name": {
+               "adjective": weighted_choice(ADJECTIVES),
+               "material": weighted_choice(MATERIALS),
+               "noun": noun,
+               "suffix": weighted_choice(SUFFIXES),
+               "number": random.randint(1, 9999),
+               "icon": NOUNS[noun]["icon"],
+            },
             "for_sale": False,
             "price": 0,
             "owner": owner,
@@ -134,6 +184,7 @@ def authenticate_user():
     for username, user_data in users.items():
         if user_data.get('token') == token:
             request.username = username
+            request.user_type = user_data.get('type')
             return
     return jsonify({"error": "Invalid token"}), 401
   
@@ -147,9 +198,25 @@ def requires_admin(f):
         users = users_db.load()
         for username, user_data in users.items():
             if user_data.get('token') == token:
-                if user_data.get('admin', False):
+                if user_data.get('type') == 'admin':
                     return f(*args, **kwargs)
                 return jsonify({"error": "Admin privileges required"}), 403
+        return jsonify({"error": "Invalid token"}), 401
+    return decorated
+  
+def requires_mod(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({"error": "Missing or invalid Authorization header"}), 401
+        token = auth_header.split(' ')[1]
+        users = users_db.load()
+        for username, user_data in users.items():
+            if user_data.get('token') == token:
+                if user_data.get('type') == 'admin' or user_data.get('type') == 'mod':
+                    return f(*args, **kwargs)
+                return jsonify({"error": "Mod privileges required"}), 403
         return jsonify({"error": "Invalid token"}), 401
     return decorated
 
@@ -178,7 +245,7 @@ def register():
     hashed_password = generate_password_hash(password)
     users[username] = {
         'password_hash': hashed_password,
-        'admin': False,
+        'type': 'user',
         'tokens': 100,
         'last_item_time': 0,
         'last_mine_time': 0,
@@ -226,7 +293,7 @@ def get_account():
 
     return jsonify({
         'username': username,
-        'admin': user.get('admin', False),
+        'type': user['type'],
         'tokens': user['tokens'],
         'items': user_items,
         'last_item_time': user['last_item_time'],
@@ -290,7 +357,39 @@ def add_admin():
     user = users.get(username)
     if not user:
         return jsonify({"error": "User not found"}), 404
-    user['admin'] = True
+    user['type'] = 'admin'
+    users_db.save(users)
+    return jsonify({"success": True})
+  
+@app.route('/api/add_mod', methods=['POST'])
+@csrf.exempt
+@requires_admin
+def add_mod():
+    data = request.get_json()
+    username = data.get('username')
+    users = users_db.load()
+    user = users.get(username)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    if user['type'] == 'admin':
+        return jsonify({"error": "User is an admin"}), 400
+    user['type'] = 'mod'
+    users_db.save(users)
+    return jsonify({"success": True})
+  
+@app.route('/api/remove_mod', methods=['POST'])
+@csrf.exempt
+@requires_admin
+def remove_mod():
+    data = request.get_json()
+    username = data.get('username')
+    users = users_db.load()
+    user = users.get(username)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    if not user['type'] == 'mod':
+        return jsonify({"error": "User is not a mod"}), 400
+    user['type'] = 'user'
     users_db.save(users)
     return jsonify({"success": True})
 
@@ -478,6 +577,75 @@ def take_item():
     items_db.save(items)
     users_db.save(users_db.load())
     return jsonify({"success": True})
+  
+# chat endpoints
+
+@app.route('/api/send_message', methods=['POST'])
+@csrf.exempt
+def send_message():
+    data = request.get_json()
+    room = data.get('room')
+    message = data.get('message')
+
+    if not room or not message:
+        return jsonify({"error": "Missing parameters"}), 400
+
+    if room not in chat_rooms:
+        return jsonify({"error": "Room not found"}), 404
+
+    chat_rooms[room].add_message(request.username, message)
+    return jsonify({"success": True})
+  
+@app.route('/api/get_messages', methods=['GET'])
+def get_messages():
+    room = request.args.get('room')
+
+    if not room:
+        return jsonify({"error": "Missing parameters"}), 400
+
+    if room not in chat_rooms:
+        return jsonify({"error": "Room not found"}), 404
+      
+    if not chat_rooms[room].is_allowed(request.username) and request.user_type != 'admin':
+        return jsonify({"error": "You are not allowed to access this room"}), 403
+
+    messages = chat_rooms[room].get_messages()
+    return jsonify({"messages": messages})
+  
+@app.route('/api/create_room', methods=['POST'])
+@csrf.exempt
+def create_room():
+    data = request.get_json()
+    room = data.get('room')
+    allowed_users = data.get('allowed_users')
+
+    if not room:
+        return jsonify({"error": "Missing parameters"}), 400
+
+    if room in chat_rooms:
+        return jsonify({"error": "Room already exists"}), 409
+
+    chat_rooms[room] = ChatRoom(room, public=False, allowed_users=allowed_users)
+    return jsonify({"success": True})
+  
+@app.route('/api/get_rooms', methods=['GET'])
+def get_rooms():
+    all_rooms = [room.name for room in chat_rooms.values()]
+    for room in chat_rooms.values():
+        if not room.is_allowed(request.username) and request.user_type != 'admin':
+            all_rooms.remove(room.name)
+    return jsonify({"rooms": all_rooms})
+  
+@app.route('/api/leaderboard', methods=['GET'])
+def leaderboard():
+    users = users_db.load()
+    leaderboard = sorted(users.items(), key=lambda x: x[1]['tokens'], reverse=True)
+    
+    def ordinal(n):
+        return "%d%s" % (n, "tsnrhtdd"[((n//10%10!=1)*(n%10<4)*n%10)::4])
+    
+    leaderboard = [{"username": username, "place": ordinal(i+1), "tokens": user['tokens']} for i, (username, user) in enumerate(leaderboard)]
+    return jsonify({"leaderboard": leaderboard[:10]})
 
 if __name__ == '__main__':
     serve(app, host='0.0.0.0', port=5000, threads=4)

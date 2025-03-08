@@ -1,32 +1,122 @@
-[
-  "Sword",
-  "Shield",
-  "Amulet",
-  "Helmet",
-  "Ring",
-  "Boots",
-  "Gloves",
-  "Dagger",
-  "Axe",
-  "Bow",
-  "Arrow",
-  "Spear",
-  "Mace",
-  "Staff",
-  "Wand",
-  "Gauntlets",
-  "Bracers",
-  "Cloak",
-  "Robe",
-  "Belt",
-  "Greaves",
-  "Chestplate",
-  "Pauldrons",
-  "Pendant",
-  "Charm",
-  "Talisman",
-  "Orb",
-  "Tome",
-  "Lantern",
-  "Runestone"
-]
+{
+  "Amulet": {
+    "rarity": 5,
+    "icon": "💍"
+  },
+  "Arrow": {
+    "rarity": 13,
+    "icon": "🏹"
+  },
+  "Axe": {
+    "rarity": 9,
+    "icon": "🪓"
+  },
+  "Belt": {
+    "rarity": 9,
+    "icon": "🧿"
+  },
+  "Boots": {
+    "rarity": 14,
+    "icon": "👟"
+  },
+  "Bow": {
+    "rarity": 7,
+    "icon": "🏹"
+  },
+  "Bracers": {
+    "rarity": 12,
+    "icon": "🥇"
+  },
+  "Charm": {
+    "rarity": 6,
+    "icon": "💍"
+  },
+  "Chestplate": {
+    "rarity": 5,
+    "icon": "👔"
+  },
+  "Cloak": {
+    "rarity": 8,
+    "icon": "🛡️"
+  },
+  "Dagger": {
+    "rarity": 11,
+    "icon": "🗡️"
+  },
+  "Gauntlets": {
+    "rarity": 12,
+    "icon": "🥇"
+  },
+  "Gloves": {
+    "rarity": 15,
+    "icon": "🥇"
+  },
+  "Greaves": {
+    "rarity": 10,
+    "icon": "👟"
+  },
+  "Helmet": {
+    "rarity": 12,
+    "icon": "👒"
+  },
+  "Lantern": {
+    "rarity": 7,
+    "icon": "🕯️"
+  },
+  "Mace": {
+    "rarity": 9,
+    "icon": "⚔️"
+  },
+  "Orb": {
+    "rarity": 3,
+    "icon": "💎"
+  },
+  "Pauldrons": {
+    "rarity": 5,
+    "icon": "👔"
+  },
+  "Pendant": {
+    "rarity": 6,
+    "icon": "💍"
+  },
+  "Ring": {
+    "rarity": 8,
+    "icon": "💍"
+  },
+  "Robe": {
+    "rarity": 6,
+    "icon": "🧿"
+  },
+  "Runestone": {
+    "rarity": 2,
+    "icon": "🗝️"
+  },
+  "Shield": {
+    "rarity": 10,
+    "icon": "🛡️"
+  },
+  "Spear": {
+    "rarity": 8,
+    "icon": "🗡️"
+  },
+  "Staff": {
+    "rarity": 6,
+    "icon": "🗡️"
+  },
+  "Sword": {
+    "rarity": 10,
+    "icon": "⚔️"
+  },
+  "Talisman": {
+    "rarity": 6,
+    "icon": "💍"
+  },
+  "Tome": {
+    "rarity": 3,
+    "icon": "📖"
+  },
+  "Wand": {
+    "rarity": 4,
+    "icon": "🪄"
+  }
+}

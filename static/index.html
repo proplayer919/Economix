@@ -24,7 +24,7 @@
     <meta name="twitter:title" content="Economix - A Game of Buying and Selling">
     <meta name="twitter:description" content="Economix is a game about buying and selling stuff.">
 
-    <title>Economix</title>
+    <title>Economix v1.6</title>
     <style>
       :root {
         --primary: #2563eb;
@@ -67,9 +67,11 @@
 
       .card {
         background: var(--card-bg);
-        padding: 2rem;
-        border-radius: 1rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--border);
+        margin-bottom: 1rem;
       }
 
       .auth-form {
@@ -80,34 +82,63 @@
 
       .auth-form h2 {
         color: var(--primary);
+      }
+
+      h2 {
         margin-bottom: 0.5rem;
       }
 
-      /* Main Content */
-      #mainContent {
-        display: grid;
-        gap: 2rem;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      }
-
-      .card {
-        background: var(--card-bg);
-        padding: 1.5rem;
-        border-radius: 0.75rem;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        border: 1px solid var(--border);
-      }
-
-      .card-header {
-        margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
+      /* Navigation */
+      .navbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding: 1rem 0;
         border-bottom: 2px solid var(--border);
+      }
+
+      .user-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      /* Tabs styling */
+      .tabs {
+        display: flex;
+        border-bottom: 2px solid var(--border);
+        margin-bottom: 1rem;
+      }
+
+      .tab {
+        padding: 0.75rem 1.5rem;
+        cursor: pointer;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-bottom: none;
+        margin-right: 0.5rem;
+        border-top-left-radius: 0.5rem;
+        border-top-right-radius: 0.5rem;
+      }
+
+      .tab.active {
+        background: #fff;
+        font-weight: bold;
+      }
+
+      .tab-contents .tab-content {
+        display: none;
+      }
+
+      .tab-contents .tab-content.active {
+        display: block;
       }
 
       /* Buttons */
       .btn {
         padding: 0.75rem 1.5rem;
-        margin: 5px;
+        margin-right: 5px;
         border: none;
         border-radius: 0.5rem;
         cursor: pointer;
@@ -186,36 +217,6 @@
         margin-top: 0.5rem;
       }
 
-      /* Navigation */
-      .navbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 2rem;
-        padding: 1rem 0;
-        border-bottom: 2px solid var(--border);
-      }
-
-      .user-info {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-      }
-
-      @media (max-width: 768px) {
-        body {
-          padding: 1rem;
-        }
-
-        .auth-container {
-          grid-template-columns: 1fr;
-        }
-
-        #mainContent {
-          grid-template-columns: 1fr;
-        }
-      }
-
       /* Custom Modal Styles */
       .modal {
         display: none;
@@ -264,16 +265,59 @@
         text-align: center;
         margin-top: 2rem;
       }
+
+      .message-input {
+        display: flex;
+        align-items: center;
+        margin-top: 1rem;
+      }
+
+      .message-input input {
+        flex: 1;
+        padding: 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        margin-right: 0.5rem;
+      }
+
+      .message-input button {
+        padding: 0.75rem 1.5rem;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s ease;
+      }
+
+      .highlight {
+        background: var(--primary);
+        color: white;
+        border-radius: 0.25rem;
+        padding: 0.25rem 0.5rem;
+      }
+
+      @media (max-width: 768px) {
+        body {
+          padding: 1rem;
+        }
+
+        .card-container {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
   </head>
 
   <body>
     <div class="container">
+      <!-- Auth Forms -->
       <div id="authForms">
         <div class="card-container">
           <div class="card">
             <div class="auth-form">
-              <h2>Welcome to 💸 Economix v1.5</h2>
+              <h2>Welcome to 💸 Economix v1.6</h2>
               <input type="text" id="loginUsername" placeholder="Username" />
               <input type="password" id="loginPassword" placeholder="Password" />
               <button class="btn btn-primary" onclick="handleLogin()">Login</button>
@@ -290,11 +334,12 @@
         </div>
       </div>
 
+      <!-- Main Content -->
       <div id="mainContent" style="display: none;">
         <div class="navbar">
-          <h1>💸 Economix v1.5</h1>
+          <h1>💸 Economix v1.6</h1>
           <div class="user-info">
-            <div class="card">
+            <div class="card" style="padding: 1rem;">
               <p>Welcome, <strong id="usernameDisplay"></strong>!</p>
               <p id="roleDisplay"></p>
               <p>Tokens: <strong id="tokens">0</strong></p>
@@ -303,40 +348,96 @@
           </div>
         </div>
 
-        <div class="grid-container">
-          <div class="card">
-            <div class="card-header">
-              <h2>Actions</h2>
-            </div>
-            <div class="actions">
-              <button class="btn btn-primary" id="takeItem">🔍 Take Item (costs 10 tokens)</button>
-              <button class="btn btn-primary" id="createItem">✨ Create Item (costs 10 tokens)</button>
-              <button class="btn btn-primary" id="mineItem">⛏️ Mine Tokens</button>
-              <button class="btn btn-danger admin-button" id="editTokens" style="display: none;">Edit Tokens
-                (Admin)</button>
-              <button class="btn btn-danger admin-button" id="addAdmin" style="display: none;">Add Admin
-                (Admin)</button>
-              <p class="cooldown" id="cooldown"></p>
-              <p class="cooldown" id="mineCooldown"></p>
+        <!-- Tab Navigation -->
+        <div class="tabs">
+          <button class="tab active" data-tab="dashboard">Dashboard</button>
+          <button class="tab" data-tab="adminDashboard" id="adminDashboardTabButton" style="display: none;">Admin
+            Dashboard</button>
+          <button class="tab" data-tab="inventory">Inventory</button>
+          <button class="tab" data-tab="market">Market</button>
+          <button class="tab" data-tab="chat">Chat</button>
+          <button class="tab" data-tab="leaderboard">Leaderboard</button>
+        </div>
+
+        <!-- Tab Contents -->
+        <div class="tab-contents">
+          <!-- Dashboard Tab -->
+          <div class="tab-content active" id="tab-dashboard">
+            <div class="card">
+              <div class="card-header">
+                <h2>Actions</h2>
+              </div>
+              <div class="actions">
+                <button class="btn btn-primary" id="takeItem">🔍 Take Item (costs 10 tokens)</button>
+                <button class="btn btn-primary" id="createItem">✨ Create Item (costs 10 tokens)</button>
+                <button class="btn btn-primary" id="mineItem">⛏️ Mine Tokens</button>
+                <p class="cooldown" id="cooldown"></p>
+                <p class="cooldown" id="mineCooldown"></p>
+              </div>
             </div>
           </div>
 
-          <!-- Inventory with Pagination -->
-          <div class="card">
-            <div class="card-header">
-              <h2>My Items</h2>
+          <!-- Admin Dashboard Tab -->
+          <div class="tab-content" id="tab-adminDashboard">
+            <div class="card">
+              <div class="card-header">
+                <h2>Admin Dashboard</h2>
+              </div>
+              <div class="actions">
+                <button class="btn btn-primary" id="editTokensAdmin">Edit Tokens</button>
+                <button class="btn btn-success" id="addAdminAdmin">Add Admin</button>
+                <button class="btn btn-success" id="addModAdmin">Add Mod</button>
+                <button class="btn btn-danger" id="removeModAdmin">Remove Mod</button>
+              </div>
             </div>
-            <ul class="item-list" id="itemsList"></ul>
-            <div id="inventoryPagination" style="margin-top: 10px; text-align: center;"></div>
           </div>
 
-          <!-- Marketplace with Pagination -->
-          <div class="card">
-            <div class="card-header">
-              <h2>Marketplace</h2>
+          <!-- Inventory Tab -->
+          <div class="tab-content" id="tab-inventory">
+            <div class="card">
+              <div class="card-header">
+                <h2>My Items</h2>
+              </div>
+              <ul class="item-list" id="itemsList"></ul>
+              <div id="inventoryPagination" style="margin-top: 10px; text-align: center;"></div>
             </div>
-            <ul class="item-list" id="marketList"></ul>
-            <div id="marketplacePagination" style="margin-top: 10px; text-align: center;"></div>
+          </div>
+
+          <!-- Market Tab -->
+          <div class="tab-content" id="tab-market">
+            <div class="card">
+              <div class="card-header">
+                <h2>Marketplace</h2>
+              </div>
+              <ul class="item-list" id="marketList"></ul>
+              <div id="marketplacePagination" style="margin-top: 10px; text-align: center;"></div>
+            </div>
+          </div>
+
+          <!-- Chat Tab -->
+          <div class="tab-content" id="tab-chat">
+            <div class="card">
+              <div class="card-header">
+                <h2>Chat</h2>
+              </div>
+              <div class="chat-area">
+                <div class="message-container" id="globalMessages"></div>
+                <div class="message-input">
+                  <input type="text" id="messageInput" placeholder="Type your message..." />
+                  <button id="sendMessage">Send</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Leaderboard Tab -->
+          <div class="tab-content" id="tab-leaderboard">
+            <div class="card">
+              <div class="card-header">
+                <h2>Leaderboard</h2>
+              </div>
+              <ul class="item-list" id="leaderboard"></ul>
+            </div>
           </div>
         </div>
       </div>
@@ -372,8 +473,8 @@
       let marketPage = 1;
       const itemsPerPage = 5;
 
-      ITEM_CREATE_COOLDOWN = 60;
-      TOKEN_MINE_COOLDOWN = 600;
+      const ITEM_CREATE_COOLDOWN = 60;
+      const TOKEN_MINE_COOLDOWN = 600;
 
       // Custom modal functions
       function customAlert(message) {
@@ -435,6 +536,28 @@
         });
       }
 
+      // Tab Switching Logic
+      function switchTab(tabName) {
+        // Remove active class from all tabs and hide all content
+        document.querySelectorAll('.tab').forEach(btn => {
+          btn.classList.remove('active');
+        });
+        document.querySelectorAll('.tab-content').forEach(content => {
+          content.classList.remove('active');
+        });
+
+        // Activate the clicked tab and its content
+        document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
+        document.getElementById('tab-' + tabName).classList.add('active');
+      }
+
+      // Set up event listeners for tab buttons
+      document.querySelectorAll('.tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          switchTab(btn.getAttribute('data-tab'));
+        });
+      });
+
       // Auth functions
       function handleLogin() {
         const username = document.getElementById('loginUsername').value;
@@ -481,6 +604,7 @@
         document.getElementById('authForms').style.display = 'none';
         document.getElementById('mainContent').style.display = 'block';
       }
+
       // Modified API functions with auth headers
       function refreshAccount() {
         const token = localStorage.getItem('token');
@@ -497,17 +621,23 @@
 
             document.getElementById('tokens').textContent = data.tokens;
             document.getElementById('usernameDisplay').textContent = data.username;
-            if (data.admin) {
+            if (data.type === 'admin') {
               document.getElementById('roleDisplay').innerHTML = `You are an <strong>Admin</strong>`;
-              let elements = document.getElementsByClassName('admin-button');
-              for (let i = 0; i < elements.length; i++) {
-                elements[i].style.display = 'inline-block';
+              // Show admin tab button if admin
+              document.getElementById('adminDashboardTabButton').style.display = 'inline-block';
+            } else if(data.type === 'mod') {
+              document.getElementById('roleDisplay').innerHTML = `You are a <strong>Mod</strong>`;
+              document.getElementById('adminDashboardTabButton').style.display = 'none';
+              // If currently in the admin dashboard, switch back to Dashboard
+              if (document.querySelector('.tab.active').getAttribute('data-tab') === 'adminDashboard') {
+                switchTab('dashboard');
               }
             } else {
               document.getElementById('roleDisplay').innerHTML = `You are a <strong>User</strong>`;
-              let elements = document.getElementsByClassName('admin-button');
-              for (let i = 0; i < elements.length; i++) {
-                elements[i].style.display = 'none';
+              document.getElementById('adminDashboardTabButton').style.display = 'none';
+              // If currently in the admin dashboard, switch back to Dashboard
+              if (document.querySelector('.tab.active').getAttribute('data-tab') === 'adminDashboard') {
+                switchTab('dashboard');
               }
             }
             items = data.items;
@@ -525,12 +655,12 @@
             const remaining = ITEM_CREATE_COOLDOWN - (now - data.last_item_time);
             const cooldownEl = document.getElementById('cooldown');
             cooldownEl.innerHTML = remaining > 0 ?
-              `Item creation cooldown: ${Math.ceil(remaining)}s remaining.${account.admin ? ` <a href="#" onclick="resetCooldown()">Skip? (Admin)</a>` : ''}` : '';
+              `Item creation cooldown: ${Math.ceil(remaining)}s remaining.${account.type === 'admin' ? ' <a href="#" onclick="resetCooldown()">Skip cooldown? (Admin)</a>' : ''}` : '';
 
             const mineRemaining = TOKEN_MINE_COOLDOWN - (now - data.last_mine_time);
             const mineCooldownEl = document.getElementById('mineCooldown');
             mineCooldownEl.innerHTML = mineRemaining > 0 ?
-              `Mining cooldown: ${Math.ceil(mineRemaining / 60)}m remaining.${account.admin ? ` <a href="#" onclick="resetCooldown()">Skip? (Admin)</a>` : ''}` : '';
+              `Mining cooldown: ${Math.ceil(mineRemaining / 60)}m remaining.${account.type === 'admin' ? ' <a href="#" onclick="resetCooldown()">Skip cooldown? (Admin)</a>' : ''}` : '';
           });
       }
 
@@ -541,7 +671,6 @@
         })
           .then(res => res.json())
           .then(data => {
-            // Reset market page if necessary
             if ((marketPage - 1) * itemsPerPage >= data.length) {
               marketPage = 1;
             }
@@ -559,7 +688,7 @@
 
         pagedItems.forEach(item => {
           const li = document.createElement('li');
-          li.textContent = `${item.icon} ${item.name} ${item.for_sale ? "(For Sale)" : ""}`;
+          li.textContent = `${item.name.icon} ${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number} ${item.for_sale ? "(For Sale)" : ""}`;
 
           const sellBtn = document.createElement('button');
           sellBtn.classList.add('btn', 'btn-secondary');
@@ -630,7 +759,7 @@
 
         pagedItems.forEach(item => {
           const li = document.createElement('li');
-          li.textContent = `${item.icon} ${item.name} - Price: ${item.price} tokens - Sold by: ${item.owner}`;
+          li.textContent = `${item.name.icon} ${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number} - Price: ${item.price} tokens - Sold by: ${item.owner}`;
           if (item.owner !== account.username) {
             const buyBtn = document.createElement('button');
             buyBtn.classList.add('btn', 'btn-primary');
@@ -676,7 +805,7 @@
         paginationContainer.appendChild(nextBtn);
       }
 
-      // Modified API call examples (add similar headers to all)
+      // API call examples
       function createItem() {
         const token = localStorage.getItem('token');
         fetch('/api/create_item', {
@@ -689,7 +818,7 @@
               customAlert(`Error creating item: ${item.error}`);
               return;
             }
-            customAlert(`Created item: ${item.icon} ${item.name}`).then(() => {
+            customAlert(`Created item: ${item.name.icon} ${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number}`).then(() => {
               refreshAccount();
             });
           });
@@ -716,13 +845,11 @@
           });
       }
 
-      // View the secret of an owned item.
       function viewSecret(itemId) {
         let item = items.find(item => item.id == itemId);
         customAlert(`Secret (do not share - it will let people take your item): ${item.item_secret}`);
       }
 
-      // Mine tokens if cooldown has passed.
       function mineTokens() {
         fetch('/api/mine_tokens', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } })
           .then(res => res.json())
@@ -737,7 +864,6 @@
           });
       }
 
-      // List an owned item for sale at a user-specified price.
       function sellItem(itemId) {
         customPrompt("Enter sale price (tokens):").then(price => {
           if (!price) return;
@@ -779,7 +905,6 @@
           });
       }
 
-      // Take item
       function takeItem() {
         customPrompt("Enter secret:").then(secret => {
           if (!secret) return;
@@ -802,7 +927,6 @@
         });
       }
 
-      // Reset cooldown
       function resetCooldown() {
         fetch('/api/reset_cooldowns', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } })
           .then(res => res.json())
@@ -817,7 +941,7 @@
           });
       }
 
-      // Edit Tokens
+      // Admin Functions (used in the Admin Dashboard tab)
       function editTokens() {
         customPrompt("Enter tokens:").then(tokens => {
           if (!tokens) return;
@@ -839,7 +963,69 @@
         });
       }
 
-      // Edit Item
+      function addAdmin() {
+        customPrompt("Enter username:").then(username => {
+          if (!username) return;
+          fetch('/api/add_admin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ username: username })
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                customAlert('Admin added!').then(() => {
+                  refreshAccount();
+                });
+              } else {
+                customAlert('Error adding admin.');
+              }
+            });
+        });
+      }
+
+      function addMod() {
+        customPrompt("Enter username:").then(username => {
+          if (!username) return;
+          fetch('/api/add_mod', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ username: username })
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                customAlert('Mod added!').then(() => {
+                  refreshAccount();
+                });
+              } else {
+                customAlert('Error adding mod.');
+              }
+            });
+        });
+      }
+
+      function removeMod() {
+        customPrompt("Enter username:").then(username => {
+          if (!username) return;
+          fetch('/api/remove_mod', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ username: username })
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                customAlert('Mod removed!').then(() => {
+                  refreshAccount();
+                });
+              } else {
+                customAlert('Error removing mod.');
+              }
+            });
+        });
+      }
+
       function editItem(item_id) {
         customPrompt("Enter new name (blank for no change):").then(newName => {
           customPrompt("Enter new icon (blank for no change):").then(newIcon => {
@@ -862,43 +1048,95 @@
         });
       }
 
-      // Add Admin
-      function addAdmin() {
-        customPrompt("Enter username:").then(username => {
-          if (!username) return;
-          fetch('/api/add_admin', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ username: username })
-          })
-            .then(res => res.json())
-            .then(data => {
-              if (data.success) {
-                customAlert('Admin added!').then(() => {
-                  refreshAccount();
-                });
-              } else {
-                customAlert('Error adding admin.');
-              }
-            });
-        });
+      // Global chat
+      function sendGlobalMessage() {
+        const message = document.getElementById('messageInput').value;
+        if (!message) return;
+        fetch('/api/send_message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ room: 'global', message: message })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              refreshMessages();
+            } else {
+              customAlert('Error sending message.');
+            }
+          });
+      }
+
+      function refreshGlobalMessages() {
+        fetch('/api/get_messages?room=global', {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.messages) {
+              document.getElementById('globalMessages').innerHTML = '';
+              data.messages.forEach(message => {
+                const messageElement = document.createElement('div');
+                messageElement.innerHTML = `<b>${message.username}:</b> ${message.message}`;
+                document.getElementById('globalMessages').appendChild(messageElement);
+              });
+            }
+          });
+      }
+
+      function refreshLeaderboard() {
+        fetch('/api/leaderboard', {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.leaderboard) {
+              document.getElementById('leaderboard').innerHTML = '';
+              data.leaderboard.forEach(user => {
+                const leaderboardElement = document.createElement('div');
+                if (user.username === account.username) {
+                  leaderboardElement.classList.add('highlight');
+                }
+                leaderboardElement.innerHTML = `<b>${user.place}:</b> ${user.username} (${user.tokens} tokens)`;
+                document.getElementById('leaderboard').appendChild(leaderboardElement);
+              });
+            }
+          });
       }
 
       // Event listeners
       document.getElementById('createItem').addEventListener('click', createItem);
       document.getElementById('mineItem').addEventListener('click', mineTokens);
       document.getElementById('takeItem').addEventListener('click', takeItem);
-      document.getElementById('editTokens').addEventListener('click', editTokens);
-      document.getElementById('addAdmin').addEventListener('click', addAdmin);
+      document.getElementById('sendMessage').addEventListener('click', sendGlobalMessage);
+      document.getElementById('addModAdmin').addEventListener('click', addMod);
+      document.getElementById('removeModAdmin').addEventListener('click', removeMod);
       document.getElementById('logout').addEventListener('click', () => {
         localStorage.removeItem('token');
       });
+
+      // Admin Dashboard event listeners (for the new admin tab)
+      document.getElementById('editTokensAdmin').addEventListener('click', editTokens);
+      document.getElementById('addAdminAdmin').addEventListener('click', addAdmin);
 
       // Interval to refresh account and market data
       setInterval(() => {
         if (account.username) {
           refreshAccount();
-          refreshMarket();
+          
+          if (document.querySelector('.tab.active').getAttribute('data-tab') === 'market') {
+            refreshMarket();
+          }
+
+          if (document.querySelector('.tab.active').getAttribute('data-tab') === 'chat') {
+            refreshGlobalMessages();
+          }
+
+          if (document.querySelector('.tab.active').getAttribute('data-tab') === 'leaderboard') {
+            refreshLeaderboard();
+          }
         }
       }, 1000);
     </script>
