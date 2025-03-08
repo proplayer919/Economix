@@ -8,7 +8,7 @@ import os
 
 app = Flask(__name__)
 CORS(app)
-app.secret_key = 'replace_this_with_a_secure_key'
+app.secret_key = os.getenv('FLASK_SECRET_KEY')
 
 # File paths for JSON "databases"
 USERS_FILE = 'users.json'
