@@ -13,9 +13,6 @@ from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect
 from waitress import serve
 
-from dotenv import load_dotenv
-load_dotenv()
-
 # Initialize Flask application
 app = Flask(__name__)
 app.config.update(
