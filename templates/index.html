@@ -504,7 +504,7 @@
             const remaining = ITEM_CREATE_COOLDOWN - (now - data.last_item_time);
             const cooldownEl = document.getElementById('cooldown');
             cooldownEl.innerHTML = remaining > 0 ?
-              `Item creation cooldown: ${Math.ceil(remaining)}s remaining.${account.admin ? ` <a href="#" onclick="resetCooldown()">Skip? (Admin)</a>` : ''}`: '';
+              `Item creation cooldown: ${Math.ceil(remaining)}s remaining.${account.admin ? ` <a href="#" onclick="resetCooldown()">Skip? (Admin)</a>` : ''}` : '';
 
             const mineRemaining = TOKEN_MINE_COOLDOWN - (now - data.last_mine_time);
             const mineCooldownEl = document.getElementById('mineCooldown');
@@ -547,12 +547,10 @@
         })
           .then(handleResponse)
           .then(item => {
-            if (!data.success) {
-              if (data.error) {
-                customAlert(`Error creating item: ${data.error}`);
-              }
-              return;
+            if (data.error) {
+              customAlert(`Error creating item: ${data.error}`);
             }
+            return;
             customAlert(`Created item: ${item.icon} ${item.name}`).then(() => {
               refreshAccount();
             });
@@ -591,12 +589,10 @@
         fetch('/api/mine_tokens', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } })
           .then(handleResponse)
           .then(data => {
-            if (!data.success) {
-              if (data.error) {
-                customAlert(`Error mining tokens: ${data.error}`);
-              }
-              return;
+            if (data.error) {
+              customAlert(`Error mining tokens: ${data.error}`);
             }
+            return;
             customAlert(`Mined tokens! You now have ${data.tokens} tokens.`).then(() => {
               refreshAccount();
             });
