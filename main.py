@@ -8,7 +8,7 @@ import threading
 from uuid import uuid4
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -123,7 +123,7 @@ def generate_item(owner):
 
 @app.before_request
 def authenticate_user():
-    if request.method == 'OPTIONS' or request.endpoint in ['register', 'login', 'restore_account', 'index']:
+    if request.method == 'OPTIONS' or request.endpoint in ['register', 'login', 'restore_account', 'index', 'static_file']:
         return
 
     auth_header = request.headers.get('Authorization')
@@ -155,7 +155,11 @@ def requires_admin(f):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return send_from_directory('static', 'index.html')
+  
+@app.route('/<path:path>')
+def static_file(path):
+    return send_from_directory('static', path)
 
 @app.route('/api/register', methods=['POST'])
 @csrf.exempt
