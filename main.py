@@ -646,6 +646,10 @@ def leaderboard():
     
     leaderboard = [{"username": username, "place": ordinal(i+1), "tokens": user['tokens']} for i, (username, user) in enumerate(leaderboard)]
     return jsonify({"leaderboard": leaderboard[:10]})
+  
+@app.route('healthcheck', methods=['GET'])
+def healthcheck():
+    return jsonify({"status": "OK"}), 200
 
 if __name__ == '__main__':
     serve(app, host='0.0.0.0', port=5000, threads=4)
