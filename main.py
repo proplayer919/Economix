@@ -321,9 +321,15 @@ def edit_tokens():
     data = request.get_json()
     tokens = data.get('tokens')
     users = users_db.load()
-    user = users.get(request.username)
+    
+    if "username" in data:
+        user = users.get(data['username'])
+    else:
+        user = users.get(request.username)
+        
     if not user:
         return jsonify({"error": "User not found"}), 404
+      
     user['tokens'] = tokens
     users_db.save(users)
     return jsonify({"success": True})
@@ -392,6 +398,30 @@ def remove_mod():
     user['type'] = 'user'
     users_db.save(users)
     return jsonify({"success": True})
+  
+@app.route('/api/delete_item', methods=['POST'])
+@csrf.exempt
+@requires_admin
+def delete_item():
+    data = request.get_json()
+    item_id = data.get('item_id')
+    items = items_db.load()
+    item = items.get(item_id)
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+    
+    owner = item['owner']
+    users = users_db.load()
+    user = users.get(owner)
+    
+    if user and item_id in user['items']:
+        user['items'].remove(item_id)
+        del items[item_id]
+        items_db.save(items)
+        users_db.save(users)
+        return jsonify({"success": True})
+    else:
+        return jsonify({"error": "Owner not found or item not in owner's list"}), 404
 
 @app.route('/api/create_item', methods=['POST'])
 @csrf.exempt
@@ -468,7 +498,7 @@ def sell_item():
         return jsonify({"error": "Missing parameters"}), 400
 
     try:
-        price = int(price)
+        price = float(price)
         if not MIN_ITEM_PRICE <= price <= MAX_ITEM_PRICE:
             raise ValueError
     except ValueError:
