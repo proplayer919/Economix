@@ -292,7 +292,7 @@
               <button class="btn btn-primary" id="takeItem">🔍 Take Item (costs 10 tokens)</button>
               <button class="btn btn-primary" id="createItem">✨ Create Item (costs 10 tokens)</button>
               <button class="btn btn-primary" id="mineItem">⛏️ Mine Tokens</button>
-              <button class="btn btn-danger" id="editTokens" class="admin-button">Edit Tokens</button>
+              <button class="btn btn-danger" id="editTokens" class="admin-button">Edit Tokens (Admin)</button>
               <p class="cooldown" id="cooldown"></p>
               <p class="cooldown" id="mineCooldown"></p>
             </div>
@@ -554,7 +554,7 @@
           if (account.admin) {
             const editBtn = document.createElement('button');
             editBtn.classList.add('btn', 'btn-primary');
-            editBtn.textContent = 'Edit';
+            editBtn.textContent = 'Edit (Admin)';
             editBtn.onclick = () => editItem(item.id);
             li.appendChild(editBtn);
           }
