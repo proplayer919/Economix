@@ -260,14 +260,14 @@
             });
         }
 
-        // Restore an account from a backup code.
+        // Restore an account from a user secret.
         function restoreAccount() {
-          const backupCode = prompt('Enter backup code:');
-          if (!backupCode) return;
+          const userSecret = prompt('Enter user secret:');
+          if (!userSecret) return;
           fetch('/api/restore_account', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ backup_code: backupCode })
+            body: JSON.stringify({ user_secret: userSecret })
           })
             .then(res => res.json())
             .then(data => {
@@ -285,7 +285,7 @@
         document.getElementById('refreshAccount').addEventListener('click', refreshAccount);
         document.getElementById('refreshMarket').addEventListener('click', refreshMarket);
         document.getElementById('takeItem').addEventListener('click', takeItem);
-        document.getElementById('viewAccountSecret').addEventListener('click', () => alert('Account Secret (back it up): ' + account.account_secret));
+        document.getElementById('viewAccountSecret').addEventListener('click', () => alert('Account Secret (back it up): ' + account.user_secret));
 
         // Initial data load.
         refreshAccount();

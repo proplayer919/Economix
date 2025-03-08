@@ -321,15 +321,15 @@ def lookup_item():
 @csrf.exempt
 def restore_account():
     data = request.get_json()
-    backup_code = data.get('backup_code')
+    user_secret = data.get('user_secret')
 
-    if not backup_code:
-        return jsonify({"error": "Missing backup_code"}), 400
+    if not user_secret:
+        return jsonify({"error": "Missing user_secret"}), 400
 
     users = users_db.load()
 
-    # Find the original account by backup_code
-    original_user_id = next((uid for uid, udata in users.items() if udata['user_secret'] == backup_code), None)
+    # Find the original account by user_secret
+    original_user_id = next((uid for uid, udata in users.items() if udata['user_secret'] == user_secret), None)
 
     if not original_user_id:
         return jsonify({"error": "Account not found"}), 404
