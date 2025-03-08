@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>Economix</title>
+
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f4f4f4;
+        padding: 20px;
+      }
+
+      h1,
+      h2 {
+        color: #333;
+      }
+
+      button {
+        padding: 10px;
+        margin: 5px;
+        cursor: pointer;
+      }
+
+      #account,
+      #take,
+      #create,
+      #mine,
+      #myItems,
+      #market {
+        margin-bottom: 20px;
+      }
+
+      ul {
+        list-style-type: none;
+        padding: 0;
+      }
+
+      li {
+        background: #fff;
+        margin-bottom: 10px;
+        padding: 10px;
+        border: 1px solid #ccc;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Economix</h1>
+    <div id="account">
+      <p>Tokens: <span id="tokens"></span></p>
+      <button id="refreshAccount">Refresh Account</button>
+      <button id="refreshMarket">Refresh Marketplace</button>
+    </div>
+    <div id="take">
+      <button id="takeItem">Enter Secret to Take Item (costs 10 tokens)</button>
+    </div>
+    <div id="create">
+      <button id="createItem">Create Item (every 60 seconds - costs 10 tokens)</button>
+      <p id="cooldown"></p>
+    </div>
+    <div id="mine">
+      <button id="mineItem">Mine Tokens (every 10 minutes)</button>
+      <p id="mineCooldown"></p>
+    </div>
+    <div id="myItems">
+      <h2>My Items</h2>
+      <ul id="itemsList"></ul>
+    </div>
+    <div id="market">
+      <h2>Marketplace</h2>
+      <ul id="marketList"></ul>
+    </div>
+    <script>
+      let items = [];
+
+      document.addEventListener('DOMContentLoaded', () => {
+        const tokensSpan = document.getElementById('tokens');
+        const itemsList = document.getElementById('itemsList');
+        const marketList = document.getElementById('marketList');
+        const cooldownEl = document.getElementById('cooldown');
+
+        function takeItem() {
+          const secret = prompt('Enter the secret code:');
+          if (!secret) return;
+          fetch('/api/take_item', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ item_secret: secret })
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                alert('Item taken!');
+                refreshAccount();
+              } else {
+                alert(data.error || 'Error taking item.');
+              }
+            });
+        }
+
+        // Refresh account data (tokens, owned items, and cooldown status)
+        function refreshAccount() {
+          fetch('/api/account')
+            .then(res => res.json())
+            .then(data => {
+              tokensSpan.textContent = data.tokens;
+
+              items = data.items;
+
+              // List user-owned items with a sell option.
+              itemsList.innerHTML = '';
+              data.items.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = `${item.icon} ${item.name}`;
+                const sellBtn = document.createElement('button');
+                sellBtn.textContent = 'Sell';
+                sellBtn.onclick = () => sellItem(item.id);
+                const viewSecretBtn = document.createElement('button');
+                viewSecretBtn.textContent = 'View Secret';
+                viewSecretBtn.onclick = () => viewSecret(item.id);
+                li.appendChild(sellBtn);
+                li.appendChild(viewSecretBtn);
+                itemsList.appendChild(li);
+              });
+
+              // Show cooldown if item creation is not yet available.
+              const now = Date.now() / 1000;
+              const remaining = 60 - (now - data.last_item_time);
+              if (remaining > 0) {
+                cooldownEl.textContent = `Item creation cooldown active: ${Math.ceil(remaining)} seconds remaining`;
+              } else {
+                cooldownEl.textContent = '';
+              }
+
+              // Show cooldown if token mining is not yet available.
+              const mineRemaining = 60 * 10 - (now - data.last_mine_time);
+              const mineCooldownEl = document.getElementById('mineCooldown');
+              if (mineRemaining > 0) {
+                mineCooldownEl.textContent = `Token mining cooldown active: ${Math.ceil(mineRemaining / 60)} minutes remaining`;
+              } else {
+                mineCooldownEl.textContent = '';
+              }
+            });
+        }
+
+        // Refresh the marketplace items.
+        function refreshMarket() {
+          fetch('/api/market')
+            .then(res => res.json())
+            .then(data => {
+              marketList.innerHTML = '';
+              data.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = `${item.icon} ${item.name} - Price: ${item.price} tokens`;
+                const buyBtn = document.createElement('button');
+                buyBtn.textContent = 'Buy';
+                buyBtn.onclick = () => buyItem(item.id);
+                li.appendChild(buyBtn);
+                marketList.appendChild(li);
+              });
+            });
+        }
+
+        // Create a new item if cooldown has passed.
+        function createItem() {
+          fetch('/api/create_item', { method: 'POST' })
+            .then(res => {
+              if (!res.ok) {
+                return res.json().then(data => { throw data; });
+              }
+              return res.json();
+            })
+            .then(item => {
+              alert(`Created item: ${item.icon} ${item.name}`);
+              refreshAccount();
+            })
+            .catch(err => {
+              if (err.remaining) {
+                alert(`Cooldown active, please wait ${Math.ceil(err.remaining)} seconds.`);
+              } else {
+                alert('Error creating item.');
+              }
+            });
+        }
+
+        // Mine tokens if cooldown has passed.
+        function mineTokens() {
+          fetch('/api/mine_tokens', { method: 'POST' })
+            .then(res => {
+              if (!res.ok) {
+                return res.json().then(data => { throw data; });
+              }
+              return res.json();
+            })
+            .then(data => {
+              alert(`Mined ${data.tokens_mined} tokens!`);
+              refreshAccount();
+            })
+            .catch(err => {
+              if (err.remaining) {
+                alert(`Cooldown active, please wait ${Math.ceil(err.remaining / 60)} minutes.`);
+              } else {
+                alert('Error mining tokens.');
+              }
+            });
+        }
+
+        // List an owned item for sale at a user-specified price.
+        function sellItem(itemId) {
+          const price = prompt("Enter sale price (tokens):");
+          if (!price) return;
+          fetch('/api/sell_item', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ item_id: itemId, price: parseInt(price) })
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                alert('Item listed for sale!');
+                refreshAccount();
+                refreshMarket();
+              } else {
+                alert('Error listing item.');
+              }
+            });
+        }
+
+        // View the secret of an owned item.
+        function viewSecret(itemId) {
+          let item = items.find(item => item.id == itemId);
+          alert(`Secret (do not share - it will let people take your item): ${item.item_secret}`);
+        }
+
+        // Purchase an item from the marketplace.
+        function buyItem(itemId) {
+          fetch('/api/buy_item', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ item_id: itemId })
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                alert('Item purchased!');
+                refreshAccount();
+                refreshMarket();
+              } else {
+                alert(data.error || 'Error buying item.');
+              }
+            });
+        }
+
+        document.getElementById('createItem').addEventListener('click', createItem);
+        document.getElementById('mineItem').addEventListener('click', mineTokens);
+        document.getElementById('refreshAccount').addEventListener('click', refreshAccount);
+        document.getElementById('refreshMarket').addEventListener('click', refreshMarket);
+        document.getElementById('takeItem').addEventListener('click', takeItem);
+
+        // Initial data load.
+        refreshAccount();
+        refreshMarket();
+      });
+
+    </script>
+  </body>
+
+</html>
