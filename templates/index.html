@@ -47,7 +47,7 @@
   </head>
 
   <body>
-    <h1>Economix v1.2</h1>
+    <h1>Economix v1.2.1</h1>
     <div id="account">
       <p>Tokens: <span id="tokens"></span></p>
       <button id="refreshAccount">Refresh Account</button>
@@ -159,13 +159,20 @@
             .then(data => {
               marketList.innerHTML = '';
               data.forEach(item => {
-                const li = document.createElement('li');
-                li.textContent = `${item.icon} ${item.name} - Price: ${item.price} tokens`;
-                const buyBtn = document.createElement('button');
-                buyBtn.textContent = 'Buy';
-                buyBtn.onclick = () => buyItem(item.id);
-                li.appendChild(buyBtn);
-                marketList.appendChild(li);
+                if (item.owner === account.id) {
+                  const li = document.createElement('li');
+                  li.textContent = `${item.icon} ${item.name} - Your item`;
+                  marketList.appendChild(li);
+                }
+                else {
+                  const li = document.createElement('li');
+                  li.textContent = `${item.icon} ${item.name} - Price: ${item.price} tokens`;
+                  const buyBtn = document.createElement('button');
+                  buyBtn.textContent = 'Buy';
+                  buyBtn.onclick = () => buyItem(item.id);
+                  li.appendChild(buyBtn);
+                  marketList.appendChild(li);
+                }
               });
             });
         }

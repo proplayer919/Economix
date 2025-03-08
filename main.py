@@ -220,7 +220,7 @@ def market():
     market_items = [
         {k: v for k, v in item.items() if k != 'item_secret'}
         for item in items.values()
-        if item['for_sale'] and item['owner'] != user_id
+        if item['for_sale']
     ]
     return jsonify(market_items)
 
