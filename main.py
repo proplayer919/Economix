@@ -358,6 +358,37 @@ def lookup_item():
 
     item_data = {k: v for k, v in item.items() if k != 'item_secret'}
     return jsonify({"item": item_data})
+  
+@app.route('/api/take_item', methods=['POST'])
+@csrf.exempt
+def take_item():
+    data = request.get_json()
+    item_secret = data.get('item_secret')
+
+    if not item_secret:
+        return jsonify({"error": "Missing item_secret"}), 400
+
+    items = items_db.load()
+    item = next((item for item in items.values() if item['item_secret'] == item_secret), None)
+
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+      
+    username = request.username
+    user = users_db.load().get(username)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    old_owner = item['owner']
+    old_owner_items = users_db.load()[old_owner]['items']
+    if item['id'] in old_owner_items:
+        old_owner_items.remove(item['id'])
+    
+    user['items'].append(item['id'])
+    item['owner'] = username
+    items_db.save(items)
+    users_db.save(users_db.load())
+    return jsonify({"success": True})
 
 if __name__ == '__main__':
     serve(app, host='0.0.0.0', port=5000, threads=4)

@@ -3,106 +3,264 @@
 
   <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Economix</title>
     <style>
-      body {
-        font-family: Arial, sans-serif;
-        background: #f4f4f4;
-        padding: 20px;
+      :root {
+        --primary: #2563eb;
+        --secondary: #3b82f6;
+        --success: #22c55e;
+        --danger: #ef4444;
+        --background: #f8fafc;
+        --card-bg: #ffffff;
+        --text: #1e293b;
+        --border: #e2e8f0;
       }
 
-      h1,
-      h2 {
-        color: #333;
-      }
-
-      button {
-        padding: 10px;
-        margin: 5px;
-        cursor: pointer;
-      }
-
-      #account,
-      #take,
-      #create,
-      #mine,
-      #myItems,
-      #market {
-        margin-bottom: 20px;
-      }
-
-      ul {
-        list-style-type: none;
+      * {
+        margin: 0;
         padding: 0;
+        box-sizing: border-box;
+        font-family: 'Segoe UI', system-ui, sans-serif;
       }
 
-      li {
-        background: #fff;
-        margin-bottom: 10px;
-        padding: 10px;
-        border: 1px solid #ccc;
+      body {
+        background: var(--background);
+        color: var(--text);
+        line-height: 1.6;
+        min-height: 100vh;
+        padding: 2rem;
       }
 
-      #authForms {
-        margin-bottom: 20px;
-        padding: 20px;
-        background: #fff;
-        border: 1px solid #ccc;
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      /* Auth Forms */
+      .auth-container {
+        display: grid;
+        gap: 2rem;
+        max-width: 800px;
+        margin: 2rem auto;
+      }
+
+      .auth-card {
+        background: var(--card-bg);
+        padding: 2rem;
+        border-radius: 1rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
       }
 
       .auth-form {
-        margin-bottom: 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
       }
 
+      .auth-form h2 {
+        color: var(--primary);
+        margin-bottom: 0.5rem;
+      }
+
+      /* Main Content */
+      #mainContent {
+        display: grid;
+        gap: 2rem;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      }
+
+      .card {
+        background: var(--card-bg);
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--border);
+      }
+
+      .card-header {
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--border);
+      }
+
+      /* Buttons */
+      .btn {
+        padding: 0.75rem 1.5rem;
+        margin-right: 5px;
+        border: none;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .btn-primary {
+        background: var(--primary);
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: var(--secondary);
+      }
+
+      .btn-success {
+        background: var(--success);
+        color: white;
+      }
+
+      .btn-danger {
+        background: var(--danger);
+        color: white;
+      }
+
+      /* Inputs */
       input {
-        padding: 8px;
-        margin: 5px;
-        width: 200px;
+        padding: 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        width: 100%;
+        transition: border-color 0.2s ease;
+      }
+
+      input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      /* Lists */
+      .item-list {
+        display: grid;
+        gap: 0.75rem;
+        list-style: none;
+      }
+
+      .list-item {
+        background: var(--card-bg);
+        padding: 1rem;
+        border-radius: 0.5rem;
+        border: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        background: var(--background);
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+
+      /* Cooldown indicators */
+      .cooldown {
+        color: #64748b;
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+      }
+
+      /* Navigation */
+      .navbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding: 1rem 0;
+        border-bottom: 2px solid var(--border);
+      }
+
+      .user-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      @media (max-width: 768px) {
+        body {
+          padding: 1rem;
+        }
+
+        .auth-container {
+          grid-template-columns: 1fr;
+        }
+
+        #mainContent {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
 
   <body>
-    <div id="authForms">
-      <div class="auth-form">
-        <h2>Login</h2>
-        <input type="text" id="loginUsername" placeholder="Username">
-        <input type="password" id="loginPassword" placeholder="Password">
-        <button onclick="handleLogin()">Login</button>
+    <div class="container">
+      <div id="authForms">
+        <div class="auth-container">
+          <div class="auth-card">
+            <div class="auth-form">
+              <h2>Welcome to Economix v1.4</h2>
+              <input type="text" id="loginUsername" placeholder="Username">
+              <input type="password" id="loginPassword" placeholder="Password">
+              <button class="btn btn-primary" onclick="handleLogin()">Login</button>
+            </div>
+          </div>
+          <div class="auth-card">
+            <div class="auth-form">
+              <h2>Create Account</h2>
+              <input type="text" id="registerUsername" placeholder="Username">
+              <input type="password" id="registerPassword" placeholder="Password">
+              <button class="btn btn-success" onclick="handleRegister()">Register</button>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="auth-form">
-        <h2>Register</h2>
-        <input type="text" id="registerUsername" placeholder="Username">
-        <input type="password" id="registerPassword" placeholder="Password">
-        <button onclick="handleRegister()">Register</button>
-      </div>
-    </div>
 
-    <div id="mainContent" style="display: none;">
-      <h1>Economix v1.3</h1>
-      <div id="account">
-        <p>Welcome, <span id="usernameDisplay"></span>!</p>
-        <p>Tokens: <span id="tokens"></span></p>
-        <button id="logout">Logout</button>
-      </div>
-      <div id="take">
-        <button id="takeItem">Enter Secret to Take Item (costs 10 tokens)</button>
-      </div>
-      <div id="create">
-        <button id="createItem">Create Item (every 60 seconds - costs 10 tokens)</button>
-        <p id="cooldown"></p>
-      </div>
-      <div id="mine">
-        <button id="mineItem">Mine Tokens (every 10 minutes)</button>
-        <p id="mineCooldown"></p>
-      </div>
-      <div id="myItems">
-        <h2>My Items</h2>
-        <ul id="itemsList"></ul>
-      </div>
-      <div id="market">
-        <h2>Marketplace</h2>
-        <ul id="marketList"></ul>
+      <div id="mainContent" style="display: none;">
+        <div class="navbar">
+          <h1>Economix v1.4</h1>
+          <div class="user-info">
+            <div class="card">
+              <p>Welcome, <strong id="usernameDisplay"></strong>!</p>
+              <p>Tokens: <strong id="tokens">0</strong></p>
+            </div>
+            <button class="btn btn-danger" id="logout">Logout</button>
+          </div>
+        </div>
+
+        <div class="grid-container">
+          <div class="card">
+            <div class="card-header">
+              <h2>Actions</h2>
+            </div>
+            <div class="actions">
+              <button class="btn btn-primary" id="takeItem">🔍 Take Item (costs 10 tokens)</button>
+              <button class="btn btn-primary" id="createItem">✨ Create Item (costs 10 tokens)</button>
+              <button class="btn btn-primary" id="mineItem">⛏️ Mine Tokens</button>
+              <p class="cooldown" id="cooldown"></p>
+              <p class="cooldown" id="mineCooldown"></p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>My Items</h2>
+            </div>
+            <ul class="item-list" id="itemsList"></ul>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>Marketplace</h2>
+            </div>
+            <ul class="item-list" id="marketList"></ul>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -197,6 +355,8 @@
               const li = document.createElement('li');
               li.textContent = `${item.icon} ${item.name} ${item.for_sale ? "(For Sale)" : ""}`;
               const sellBtn = document.createElement('button');
+              sellBtn.classList.add('btn');
+              sellBtn.classList.add('btn-secondary');
               sellBtn.textContent = item.for_sale ? 'Cancel Sale' : 'Sell';
               if (item.for_sale) {
                 sellBtn.onclick = () => cancelSale(item.id);
@@ -205,6 +365,8 @@
                 sellBtn.onclick = () => sellItem(item.id);
               }
               const viewSecretBtn = document.createElement('button');
+              viewSecretBtn.classList.add('btn');
+              viewSecretBtn.classList.add('btn-danger');
               viewSecretBtn.textContent = 'View Secret';
               viewSecretBtn.onclick = () => viewSecret(item.id);
               li.appendChild(sellBtn);
@@ -346,6 +508,27 @@
           });
       }
 
+      // Take item
+      function takeItem() {
+        const secret = prompt("Enter secret:");
+        if (!secret) return;
+        fetch('/api/take_item', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ item_secret: secret })
+        })
+          .then(handleResponse)
+          .then(data => {
+            if (data.success) {
+              alert('Item taken!');
+              refreshAccount();
+              refreshMarket();
+            } else {
+              alert('Error taking item.');
+            }
+          });
+      }
+
       // Helper function for API responses
       function handleResponse(res) {
         if (!res.ok) {
@@ -357,9 +540,9 @@
       // Event listeners
       document.getElementById('createItem').addEventListener('click', createItem);
       document.getElementById('mineItem').addEventListener('click', mineTokens);
+      document.getElementById('takeItem').addEventListener('click', takeItem);
       document.getElementById('logout').addEventListener('click', () => {
         localStorage.removeItem('token');
-        alert('Logged out. Refresh page to log back in.');
       });
 
       // Interval
