@@ -128,6 +128,7 @@ def assign_user():
         users = users_db.load()
         users[user_id] = {
             'tokens': 100,
+            'user_secret': str(uuid4()),
             'last_item_time': 0,
             'last_mine_time': 0,
             'items': []
@@ -145,6 +146,7 @@ def get_account():
     return jsonify({
         'tokens': user['tokens'],
         'items': user['items'],
+        'user_secret': user['user_secret'],
         'last_item_time': user['last_item_time'],
         'last_mine_time': user['last_mine_time']
     })
@@ -303,6 +305,46 @@ def lookup_item():
     item_data = {k: v for k, v in item.items() if k != 'item_secret'}
     
     return jsonify({"item": item_data})
+  
+@app.route('/api/copy_account', methods=['POST'])
+@csrf.exempt
+def copy_account():
+    data = request.get_json()
+    backup_code = data.get('backup_code')
+
+    if not backup_code:
+        return jsonify({"error": "Missing backup_code"}), 400
+
+    users = users_db.load()
+
+    # Find the original account by backup_code
+    original_user_id = next((uid for uid, udata in users.items() if udata['user_secret'] == backup_code), None)
+
+    if not original_user_id:
+        return jsonify({"error": "Account not found"}), 404
+
+    original_user = users[original_user_id]
+
+    # Assign a new user secret
+    new_user_secret = str(uuid4())
+
+    # Copy the data from the original account, but with a new secret
+    users[session['user_id']] = {
+        'tokens': original_user['tokens'],
+        'user_secret': new_user_secret,
+        'last_item_time': original_user['last_item_time'],
+        'last_mine_time': original_user['last_mine_time'],
+        'items': original_user['items'][:]
+    }
+    
+    # Remove all data from the original account
+    del users[original_user_id]
+
+    users_db.save(users)
+    return jsonify({"success": True})
+
 
 if __name__ == '__main__':
+    users_db.load()
+    items_db.load()
     serve(app, host='0.0.0.0', port=5000, threads=4)

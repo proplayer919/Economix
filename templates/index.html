@@ -47,11 +47,13 @@
   </head>
 
   <body>
-    <h1>Economix v1.1</h1>
+    <h1>Economix v1.2</h1>
     <div id="account">
       <p>Tokens: <span id="tokens"></span></p>
       <button id="refreshAccount">Refresh Account</button>
       <button id="refreshMarket">Refresh Marketplace</button>
+      <button id="viewAccountSecret">View Account Secret (Backup Code)</button>
+      <button id="restoreAccount">Restore Account (From Backup Code)</button>
     </div>
     <div id="take">
       <button id="takeItem">Enter Secret to Take Item (costs 10 tokens)</button>
@@ -74,6 +76,7 @@
     </div>
     <script>
       let items = [];
+      let account = {};
 
       document.addEventListener('DOMContentLoaded', () => {
         const tokensSpan = document.getElementById('tokens');
@@ -108,6 +111,7 @@
               tokensSpan.textContent = data.tokens;
 
               items = data.items;
+              account = data;
 
               // List user-owned items with a sell option.
               itemsList.innerHTML = '';
@@ -256,11 +260,32 @@
             });
         }
 
+        // Restore an account from a backup code.
+        function restoreAccount() {
+          const backupCode = prompt('Enter backup code:');
+          if (!backupCode) return;
+          fetch('/api/restore_account', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ backup_code: backupCode })
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                alert('Account restored!');
+                refreshAccount();
+              } else {
+                alert(data.error || 'Error restoring account.');
+              }
+            });
+        }
+
         document.getElementById('createItem').addEventListener('click', createItem);
         document.getElementById('mineItem').addEventListener('click', mineTokens);
         document.getElementById('refreshAccount').addEventListener('click', refreshAccount);
         document.getElementById('refreshMarket').addEventListener('click', refreshMarket);
         document.getElementById('takeItem').addEventListener('click', takeItem);
+        document.getElementById('viewAccountSecret').addEventListener('click', () => alert('Account Secret (back it up): ' + account.account_secret));
 
         // Initial data load.
         refreshAccount();
