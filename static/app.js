@@ -787,7 +787,7 @@ function listUsers() {
     .then(res => res.json())
     .then(data => {
       if (data.usernames) {
-        customAlert(data.usernames.join('<b>;;;</b>'));
+        customAlert(data.usernames.join('<b>;</b>'));
       }
     });
 }
