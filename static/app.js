@@ -841,3 +841,10 @@ setInterval(() => {
 
 // Initial data refresh
 getStats();
+
+// Check if the user is logged in (local storage)
+if (localStorage.getItem('token')) {
+  token = localStorage.getItem('token');
+  showMainContent();
+  refreshAccount();
+}
