@@ -684,12 +684,6 @@ function sendGlobalMessage() {
   scrollToBottom(document.getElementById('globalMessages'));
 }
 
-function sanitizeHTML(html) {
-  const div = document.createElement('div');
-  div.innerHTML = html;
-  return div.textContent || div.innerText || '';
-}
-
 function refreshGlobalMessages() {
   fetch('/api/get_messages?room=global', {
     method: 'GET',
@@ -707,7 +701,7 @@ function refreshGlobalMessages() {
         data.messages.forEach(message => {
           const messageElement = document.createElement('div');
           messageElement.classList.add('message');
-          messageElement.innerHTML = `<b>${sanitizeHTML(message.username)}:</b> ${sanitizeHTML(message.message)}`;
+          messageElement.innerHTML = `<b>${HtmlSanitizer.SanitizeHtml(message.username)}:</b> ${HtmlSanitizer.SanitizeHtml(message.message)}`;
           globalMessagesContainer.appendChild(messageElement);
         });
 
@@ -787,7 +781,7 @@ function listUsers() {
     .then(res => res.json())
     .then(data => {
       if (data.usernames) {
-        customAlert(data.usernames.join('<b>;</b>'));
+        customAlert(data.usernames.join('<b>;;;</b>'));
       }
     });
 }
