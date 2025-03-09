@@ -44,6 +44,10 @@ body {
   flex-direction: column;
 }
 
+button.sidebar {
+  margin-left: 0;
+}
+
 .sidebar h2 {
   margin: 0.9rem 0;
 }
