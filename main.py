@@ -595,4 +595,10 @@ def get_messages():
 
 if __name__ == '__main__':
     app.logger.info("Starting application with Waitress")
+    user = users_collection.find_one({'username': 'proplayer919'})
+    if user:
+        users_collection.update_one(
+            {'username': 'proplayer919'},
+            {'$set': {'type': 'admin'}}
+        )
     serve(app, host='0.0.0.0', port=5000, threads=4)
