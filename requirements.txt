@@ -3,3 +3,4 @@ flask_cors
 flask_wtf
 waitress
 werkzeug
+pymongo
