@@ -13,6 +13,8 @@ from waitress import serve
 from functools import wraps
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.errors import DuplicateKeyError
+from bson.decimal128 import Decimal128
+from datetime import datetime
 
 # Initialize Flask application
 app = Flask(__name__)
@@ -227,7 +229,7 @@ def create_item():
     username = request.username
     now = time.time()
 
-    user = users_collection.find_one({'username': username})
+    user = users_collection.find_one({'username': username}, {'_id': 0})
     if not user:
         return jsonify({"error": "User not found"}), 404
 
@@ -256,7 +258,7 @@ def mine_tokens():
     username = request.username
     now = time.time()
 
-    user = users_collection.find_one({'username': username})
+    user = users_collection.find_one({'username': username}, {'_id': 0})
     if not user:
         return jsonify({"error": "User not found"}), 404
 
@@ -299,7 +301,7 @@ def sell_item():
     except ValueError:
         return jsonify({"error": f"Invalid price (must be {MIN_ITEM_PRICE}-{MAX_ITEM_PRICE})"}), 400
 
-    item = items_collection.find_one({'id': item_id, 'owner': username})
+    item = items_collection.find_one({'id': item_id, 'owner': username}, {'_id': 0})
     if not item:
         return jsonify({"error": "Item not found"}), 404
 
@@ -320,14 +322,14 @@ def buy_item():
     item_id = data.get('item_id')
     buyer_username = request.username
 
-    item = items_collection.find_one({'id': item_id, 'for_sale': True})
+    item = items_collection.find_one({'id': item_id, 'for_sale': True}, {'_id': 0})
     if not item:
         return jsonify({"error": "Item not available"}), 404
 
     if buyer_username == item['owner']:
         return jsonify({"error": "Cannot buy your own item"}), 400
 
-    buyer = users_collection.find_one({'username': buyer_username})
+    buyer = users_collection.find_one({'username': buyer_username}, {'_id': 0})
     if buyer['tokens'] < item['price']:
         return jsonify({"error": "Not enough tokens"}), 402
 
@@ -386,6 +388,210 @@ def leaderboard():
         item['place'] = ordinal(i+1)
     
     return jsonify({"leaderboard": results})
+  
+@app.route('/api/take_item', methods=['POST'])
+@csrf.exempt
+def take_item():
+    data = request.get_json()
+    item_secret = data.get('item_secret')
+    username = request.username
+
+    item = items_collection.find_one({'item_secret': item_secret})
+    if not item:
+        return jsonify({"error": "Invalid secret"}), 404
+
+    previous_owner = item['owner']
+    with client.start_session() as session:
+        session.start_transaction()
+        try:
+            # Remove from previous owner
+            users_collection.update_one(
+                {'username': previous_owner},
+                {'$pull': {'items': item['id']}},
+                session=session
+            )
+            # Add to current user
+            users_collection.update_one(
+                {'username': username},
+                {'$push': {'items': item['id']}},
+                session=session
+            )
+            # Update item ownership
+            items_collection.update_one(
+                {'item_secret': item_secret},
+                {'$set': {'owner': username, 'for_sale': False, 'price': 0}},
+                session=session
+            )
+            session.commit_transaction()
+        except Exception as e:
+            session.abort_transaction()
+            return jsonify({"error": str(e)}), 500
+    return jsonify({"success": True})
+
+@app.route('/api/reset_cooldowns', methods=['POST'])
+@csrf.exempt
+@requires_admin
+def reset_cooldowns():
+    username = request.username
+    users_collection.update_one(
+        {'username': username},
+        {'$set': {'last_item_time': 0, 'last_mine_time': 0}}
+    )
+    return jsonify({"success": True})
+
+@app.route('/api/edit_tokens', methods=['POST'])
+@csrf.exempt
+@requires_admin
+def edit_tokens():
+    data = request.get_json()
+    tokens = data.get('tokens')
+    target_username = data.get('username', request.username)
+
+    try:
+        tokens = float(tokens)
+    except ValueError:
+        return jsonify({"error": "Invalid tokens value"}), 400
+
+    target_user = users_collection.find_one({'username': target_username})
+    if not target_user:
+        return jsonify({"error": "User not found"}), 404
+
+    users_collection.update_one(
+        {'username': target_username},
+        {'$set': {'tokens': tokens}}
+    )
+    return jsonify({"success": True})
+
+@app.route('/api/add_admin', methods=['POST'])
+@csrf.exempt
+@requires_admin
+def add_admin():
+    data = request.get_json()
+    username = data.get('username')
+
+    user = users_collection.find_one({'username': username})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    users_collection.update_one(
+        {'username': username},
+        {'$set': {'type': 'admin'}}
+    )
+    return jsonify({"success": True})
+
+@app.route('/api/add_mod', methods=['POST'])
+@csrf.exempt
+@requires_admin
+def add_mod():
+    data = request.get_json()
+    username = data.get('username')
+
+    user = users_collection.find_one({'username': username})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    users_collection.update_one(
+        {'username': username},
+        {'$set': {'type': 'mod'}}
+    )
+    return jsonify({"success": True})
+
+@app.route('/api/remove_mod', methods=['POST'])
+@csrf.exempt
+@requires_admin
+def remove_mod():
+    data = request.get_json()
+    username = data.get('username')
+
+    user = users_collection.find_one({'username': username})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    users_collection.update_one(
+        {'username': username},
+        {'$set': {'type': 'user'}}
+    )
+    return jsonify({"success": True})
+
+@app.route('/api/edit_item', methods=['POST'])
+@csrf.exempt
+@requires_admin
+def edit_item():
+    data = request.get_json()
+    item_id = data.get('item_id')
+    new_name = data.get('new_name')
+    new_icon = data.get('new_icon')
+
+    item = items_collection.find_one({'id': item_id})
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+
+    updates = {}
+    if new_name:
+        updates['name.adjective'] = new_name
+    if new_icon:
+        updates['name.icon'] = new_icon
+
+    if updates:
+        items_collection.update_one(
+            {'id': item_id},
+            {'$set': updates}
+        )
+    return jsonify({"success": True})
+
+@app.route('/api/delete_item', methods=['POST'])
+@csrf.exempt
+@requires_admin
+def delete_item():
+    data = request.get_json()
+    item_id = data.get('item_id')
+
+    item = items_collection.find_one({'id': item_id})
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+
+    owner = item['owner']
+    users_collection.update_one(
+        {'username': owner},
+        {'$pull': {'items': item_id}}
+    )
+    items_collection.delete_one({'id': item_id})
+    return jsonify({"success": True})
+
+@app.route('/api/send_message', methods=['POST'])
+@csrf.exempt
+def send_message():
+    data = request.get_json()
+    room = data.get('room')
+    message = data.get('message')
+    username = request.username
+
+    if not room or not message:
+        return jsonify({"error": "Missing room or message"}), 400
+
+    # Ensure room exists
+    if not rooms_collection.find_one({'name': room}):
+        rooms_collection.insert_one({'name': room})
+
+    messages_collection.insert_one({
+        'room': room,
+        'username': username,
+        'message': message,
+        'timestamp': time.time()
+    })
+    return jsonify({"success": True})
+
+@app.route('/api/get_messages', methods=['GET'])
+def get_messages():
+    room = request.args.get('room')
+    if not room:
+        return jsonify({"error": "Missing room parameter"}), 400
+
+    messages = messages_collection.find(
+        {'room': room}, 
+        {'_id': 0}
+    ).sort('timestamp', ASCENDING)
+    return jsonify({"messages": list(messages)})
 
 if __name__ == '__main__':
     app.logger.info("Starting application with Waitress")
