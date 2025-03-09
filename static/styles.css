@@ -44,10 +44,6 @@ body {
   flex-direction: column;
 }
 
-button.sidebar {
-  margin-left: 0;
-}
-
 .sidebar h2 {
   margin: 0.9rem 0;
 }
@@ -157,7 +153,6 @@ h2 {
 .btn {
   padding: 0.75rem 1.5rem;
   margin-right: 0.5rem;
-  margin-left: 0.5rem;
   border: none;
   border-radius: 0.5rem;
   cursor: pointer;
@@ -166,6 +161,14 @@ h2 {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.btn#tab-inventory {
+  margin-left: 0.5rem;
+}
+
+.btn#tab-market {
+  margin-left: 0.5rem;
 }
 
 .btn-primary {
