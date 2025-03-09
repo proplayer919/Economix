@@ -91,7 +91,6 @@ def authenticate_user():
     if user:
         request.username = user['username']
         request.user_type = user.get('type', 'user')
-        app.logger.info(f"Authenticated user: {user['username']}")
         return
     
     app.logger.warning("Invalid token provided")
@@ -179,6 +178,8 @@ def register():
             'items': [],
             'token': None
         })
+        
+        
         return jsonify({"success": True}), 201
     except DuplicateKeyError:
         return jsonify({"error": "Username already exists"}), 400
@@ -593,33 +594,36 @@ def get_messages():
   
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
-    accounts = users_collection.find()
-    items = items_collection.find()
-    mods = users_collection.find({'type': 'mod'})
-    admins = users_collection.find({'type': 'admin'})
-    users = users_collection.find({'type': 'user'})
-    
+    accounts_cursor = users_collection.find()
+    items_cursor = items_collection.find()
+    mods_cursor = users_collection.find({'type': 'mod'})
+    admins_cursor = users_collection.find({'type': 'admin'})
+    users_cursor = users_collection.find({'type': 'user'})
 
-    total_tokens = 0
-    for user in accounts:
-        total_tokens += user['tokens']
+    accounts = list(accounts_cursor)
+    admins = list(admins_cursor)
+    mods = list(mods_cursor)
+    users = list(users_cursor)
+    items = list(items_cursor)
+
+    total_tokens = sum(user['tokens'] for user in accounts)
 
     return jsonify([
       {
         "name": "Total Accounts",
-        "value": len(list(accounts))
+        "value": len(accounts)
       },
       {
         "name": "Total Admins",
-        "value": len(list(admins))
+        "value": len(admins)
       },
       {
         "name": "Total Mods",
-        "value": len(list(mods))
+        "value": len(mods)
       },
       {
         "name": "Total Users",
-        "value": len(list(users))
+        "value": len(users)
       },
       {
         "name": "Total Tokens",
@@ -627,7 +631,7 @@ def get_stats():
       },
       {
         "name": "Total Items",
-        "value": len(list(items))
+        "value": len(items)
       }
     ])
 
