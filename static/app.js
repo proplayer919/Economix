@@ -734,6 +734,24 @@ function refreshLeaderboard() {
     });
 }
 
+function getStats() {
+  fetch('/api/stats', {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.stats) {
+        document.getElementById('stats').innerHTML = '';
+        data.stats.forEach(stat => {
+          const statElement = document.createElement('div');
+          statElement.innerHTML = `<b>${stat.name}:</b> ${stat.value}`;
+          document.getElementById('stats').appendChild(statElement);
+        });
+      }
+    });
+}
+
 // Helper functions for auto-scrolling
 function isUserAtBottom(container) {
   // Allow a small threshold (e.g., 2 pixels) for precision issues.

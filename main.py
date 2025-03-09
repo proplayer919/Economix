@@ -590,6 +590,46 @@ def get_messages():
         {'_id': 0}
     ).sort('timestamp', ASCENDING)
     return jsonify({"messages": list(messages)})
+  
+@app.route('/api/stats', methods=['GET'])
+def get_stats():
+    accounts = users_collection.find()
+    items = items_collection.find()
+    mods = users_collection.find({'type': 'mod'})
+    admins = users_collection.find({'type': 'admin'})
+    users = users_collection.find({'type': 'user'})
+    
+
+    total_tokens = 0
+    for user in accounts:
+        total_tokens += user['tokens']
+
+    return jsonify([
+      {
+        "name": "Total Accounts",
+        "value": accounts.count()
+      },
+      {
+        "name": "Total Admins",
+        "value": admins.count()
+      },
+      {
+        "name": "Total Mods",
+        "value": mods.count()
+      },
+      {
+        "name": "Total Users",
+        "value": users.count()
+      },
+      {
+        "name": "Total Tokens",
+        "value": total_tokens
+      },
+      {
+        "name": "Total Items",
+        "value": items.count()
+      }
+    ])
 
 if __name__ == '__main__':
     app.logger.info("Starting application with Waitress")
