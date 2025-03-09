@@ -164,6 +164,18 @@ def generate_item(owner):
     }
 
 
+# Utilty function
+def split_name(name):
+    # split the name into adjective, material, noun, suffix, and number
+    return {
+        "adjective": name.split(" ")[0],
+        "material": name.split(" ")[1],
+        "noun": name.split(" ")[2],
+        "suffix": " ".join(name.split(" ")[3:]).split("#")[0],
+        "number": " ".join(name.split(" ")[3:]).split("#")[1],
+    }
+
+
 # Routes
 @app.route("/")
 def index():
@@ -557,7 +569,12 @@ def edit_item():
 
     updates = {}
     if new_name:
-        updates["name.adjective"] = new_name
+        parts = split_name(new_name)
+        updates["name.adjective"] = parts["adjective"]
+        updates["name.material"] = parts["material"]
+        updates["name.noun"] = parts["noun"]
+        updates["name.suffix"] = parts["suffix"]
+        updates["name.number"] = parts["number"]
     if new_icon:
         updates["name.icon"] = new_icon
 
