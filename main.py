@@ -607,19 +607,19 @@ def get_stats():
     return jsonify([
       {
         "name": "Total Accounts",
-        "value": accounts.count()
+        "value": len(list(accounts))
       },
       {
         "name": "Total Admins",
-        "value": admins.count()
+        "value": len(list(admins))
       },
       {
         "name": "Total Mods",
-        "value": mods.count()
+        "value": len(list(mods))
       },
       {
         "name": "Total Users",
-        "value": users.count()
+        "value": len(list(users))
       },
       {
         "name": "Total Tokens",
@@ -627,7 +627,7 @@ def get_stats():
       },
       {
         "name": "Total Items",
-        "value": items.count()
+        "value": len(list(items))
       }
     ])
 
