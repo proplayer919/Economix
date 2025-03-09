@@ -208,7 +208,8 @@ def get_account():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    items = items_collection.find({'id': {'$in': user['items']}})
+    # Exclude _id from the items query
+    items = items_collection.find({'id': {'$in': user['items']}}, {'_id': 0})
     user_items = [item for item in items]
 
     return jsonify({
@@ -276,10 +277,11 @@ def mine_tokens():
 @app.route('/api/market', methods=['GET'])
 def market():
     username = request.username
+    # Exclude _id from the items query
     items = items_collection.find({
         'for_sale': True,
         'owner': {'$ne': username}
-    })
+    }, {'_id': 0})
     return jsonify([{k: v for k, v in item.items() if k != 'item_secret'} for item in items])
 
 @app.route('/api/sell_item', methods=['POST'])
@@ -370,6 +372,7 @@ def leaderboard():
         {"$sort": {"tokens": DESCENDING}},
         {"$limit": 10},
         {"$project": {
+            "_id": 0,  # Exclude _id from the result
             "username": 1,
             "tokens": 1
         }}
