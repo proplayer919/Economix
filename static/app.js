@@ -796,3 +796,6 @@ setInterval(() => {
     }
   }
 }, 1000);
+
+// Initial data refresh
+getStats();
