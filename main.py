@@ -250,7 +250,7 @@ def create_item():
             '$inc': {'tokens': -10}
         }
     )
-    return jsonify({k: v for k, v in new_item.items() if k != 'item_secret'})
+    return jsonify({k: v for k, v in new_item.items() if k != '_id' and k != 'item_secret'})
 
 @app.route('/api/mine_tokens', methods=['POST'])
 @csrf.exempt
