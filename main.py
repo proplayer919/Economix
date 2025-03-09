@@ -78,7 +78,7 @@ except Exception as e:
 # Authentication middleware
 @app.before_request
 def authenticate_user():
-    if request.method == 'OPTIONS' or request.endpoint in ['register', 'login', 'restore_account', 'index', 'static_file', 'view_logs']:
+    if request.method == 'OPTIONS' or request.endpoint in ['register', 'login', 'restore_account', 'index', 'static_file', 'view_logs', 'get_stats']:
         return
 
     auth_header = request.headers.get('Authorization')
