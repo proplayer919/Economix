@@ -18,7 +18,7 @@ function customAlert(message) {
     const modal = document.getElementById('customModal');
     const modalMessage = document.getElementById('modalMessage');
     const modalInputContainer = document.getElementById('modalInputContainer');
-    modalMessage.textContent = message;
+    modalMessage.innerHTML = message;
     modalInputContainer.style.display = "none";
     modal.style.display = "block";
 
@@ -684,6 +684,12 @@ function sendGlobalMessage() {
   scrollToBottom(document.getElementById('globalMessages'));
 }
 
+function sanitizeHTML(html) {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return div.textContent || div.innerText || '';
+}
+
 function refreshGlobalMessages() {
   fetch('/api/get_messages?room=global', {
     method: 'GET',
@@ -701,7 +707,7 @@ function refreshGlobalMessages() {
         data.messages.forEach(message => {
           const messageElement = document.createElement('div');
           messageElement.classList.add('message');
-          messageElement.innerHTML = `<b>${message.username}:</b> ${message.message}`;
+          messageElement.innerHTML = `<b>${sanitizeHTML(message.username)}:</b> ${sanitizeHTML(message.message)}`;
           globalMessagesContainer.appendChild(messageElement);
         });
 
@@ -780,8 +786,8 @@ function listUsers() {
   })
     .then(res => res.json())
     .then(data => {
-      if (data.users) {
-        customAlert(data.users.join(';;;'));
+      if (data.usernames) {
+        customAlert(data.users.join('<b>;;;</b>'));
       }
     });
 }

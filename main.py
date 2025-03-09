@@ -7,24 +7,22 @@ from uuid import uuid4
 from logging.handlers import RotatingFileHandler
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 from waitress import serve
 from functools import wraps
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.errors import DuplicateKeyError
+import re
+import html
 
 # Initialize Flask application
 app = Flask(__name__)
 app.config.update(
     SECRET_KEY=os.environ.get("FLASK_SECRET_KEY", "1234"),
-    WTF_CSRF_ENABLED=True,
-    WTF_CSRF_TIME_LIMIT=3600,
 )
 
 # Security middleware
 CORS(app, origins=os.environ.get("CORS_ORIGINS", "").split(","))
-csrf = CSRFProtect(app)
 
 # Configure logging
 handler = RotatingFileHandler(
@@ -188,7 +186,6 @@ def static_file(path):
 
 
 @app.route("/api/register", methods=["POST"])
-@csrf.exempt
 def register():
     data = request.get_json()
     username = data.get("username")
@@ -196,6 +193,18 @@ def register():
 
     if not username or not password:
         return jsonify({"error": "Missing username or password"}), 400
+
+    # Sanitize and validate username
+    username = username.strip().lower()
+    if not re.match(r"^[a-zA-Z0-9_-]{3,20}$", username):
+        return (
+            jsonify(
+                {
+                    "error": "Username must be 3-20 characters, alphanumeric, underscores, or hyphens"
+                }
+            ),
+            400,
+        )
 
     try:
         hashed_password = generate_password_hash(password)
@@ -211,17 +220,15 @@ def register():
                 "token": None,
             }
         )
-
         return jsonify({"success": True}), 201
     except DuplicateKeyError:
         return jsonify({"error": "Username already exists"}), 400
 
 
 @app.route("/api/login", methods=["POST"])
-@csrf.exempt
 def login():
     data = request.get_json()
-    username = data.get("username")
+    username = data.get("username", "").strip().lower()  # Sanitize input
     password = data.get("password")
 
     user = users_collection.find_one({"username": username})
@@ -234,7 +241,6 @@ def login():
 
 
 @app.route("/api/account", methods=["GET"])
-@csrf.exempt
 def get_account():
     user = users_collection.find_one({"username": request.username})
     if not user:
@@ -257,7 +263,6 @@ def get_account():
 
 
 @app.route("/api/create_item", methods=["POST"])
-@csrf.exempt
 def create_item():
     username = request.username
     now = time.time()
@@ -289,7 +294,6 @@ def create_item():
 
 
 @app.route("/api/mine_tokens", methods=["POST"])
-@csrf.exempt
 def mine_tokens():
     username = request.username
     now = time.time()
@@ -323,7 +327,6 @@ def market():
 
 
 @app.route("/api/sell_item", methods=["POST"])
-@csrf.exempt
 def sell_item():
     data = request.get_json()
     item_id = data.get("item_id")
@@ -355,7 +358,6 @@ def sell_item():
 
 
 @app.route("/api/buy_item", methods=["POST"])
-@csrf.exempt
 def buy_item():
     data = request.get_json()
     item_id = data.get("item_id")
@@ -436,7 +438,6 @@ def leaderboard():
 
 
 @app.route("/api/take_item", methods=["POST"])
-@csrf.exempt
 def take_item():
     data = request.get_json()
     item_secret = data.get("item_secret")
@@ -476,7 +477,6 @@ def take_item():
 
 
 @app.route("/api/reset_cooldowns", methods=["POST"])
-@csrf.exempt
 @requires_admin
 def reset_cooldowns():
     username = request.username
@@ -487,7 +487,6 @@ def reset_cooldowns():
 
 
 @app.route("/api/edit_tokens", methods=["POST"])
-@csrf.exempt
 @requires_admin
 def edit_tokens():
     data = request.get_json()
@@ -510,7 +509,6 @@ def edit_tokens():
 
 
 @app.route("/api/add_admin", methods=["POST"])
-@csrf.exempt
 @requires_admin
 def add_admin():
     data = request.get_json()
@@ -525,7 +523,6 @@ def add_admin():
 
 
 @app.route("/api/add_mod", methods=["POST"])
-@csrf.exempt
 @requires_admin
 def add_mod():
     data = request.get_json()
@@ -540,7 +537,6 @@ def add_mod():
 
 
 @app.route("/api/remove_mod", methods=["POST"])
-@csrf.exempt
 @requires_admin
 def remove_mod():
     data = request.get_json()
@@ -555,7 +551,6 @@ def remove_mod():
 
 
 @app.route("/api/edit_item", methods=["POST"])
-@csrf.exempt
 @requires_admin
 def edit_item():
     data = request.get_json()
@@ -570,13 +565,14 @@ def edit_item():
     updates = {}
     if new_name:
         parts = split_name(new_name)
-        updates["name.adjective"] = parts["adjective"]
-        updates["name.material"] = parts["material"]
-        updates["name.noun"] = parts["noun"]
-        updates["name.suffix"] = parts["suffix"]
-        updates["name.number"] = parts["number"]
+        # Sanitize each component
+        updates["name.adjective"] = html.escape(parts["adjective"].strip())
+        updates["name.material"] = html.escape(parts["material"].strip())
+        updates["name.noun"] = html.escape(parts["noun"].strip())
+        updates["name.suffix"] = html.escape(parts["suffix"].strip())
+        updates["name.number"] = html.escape(parts["number"].strip())
     if new_icon:
-        updates["name.icon"] = new_icon
+        updates["name.icon"] = html.escape(new_icon.strip())
 
     if updates:
         items_collection.update_one({"id": item_id}, {"$set": updates})
@@ -584,7 +580,6 @@ def edit_item():
 
 
 @app.route("/api/delete_item", methods=["POST"])
-@csrf.exempt
 @requires_admin
 def delete_item():
     data = request.get_json()
@@ -598,9 +593,8 @@ def delete_item():
     users_collection.update_one({"username": owner}, {"$pull": {"items": item_id}})
     items_collection.delete_one({"id": item_id})
     return jsonify({"success": True})
-  
+
 @app.route("/api/ban_user", methods=["POST"])
-@csrf.exempt
 @requires_admin
 def ban_user():
     data = request.get_json()
@@ -623,7 +617,7 @@ def ban_user():
     users_collection.delete_one({"username": username})
 
     return jsonify({"success": True})
-  
+
 @app.route("/api/users", methods=["GET"])
 @requires_admin
 def get_users():
@@ -633,15 +627,25 @@ def get_users():
 
 
 @app.route("/api/send_message", methods=["POST"])
-@csrf.exempt
 def send_message():
     data = request.get_json()
-    room = data.get("room")
-    message = data.get("message")
+    room = data.get("room", "").strip()
+    message = data.get("message", "")
     username = request.username
 
     if not room or not message:
         return jsonify({"error": "Missing room or message"}), 400
+
+    # Validate room name
+    if not re.match(r"^[a-zA-Z0-9_-]{1,50}$", room):
+        return jsonify({"error": "Invalid room name"}), 400
+
+    # Sanitize message content
+    sanitized_message = html.escape(message.strip())
+    if len(sanitized_message) == 0:
+        return jsonify({"error": "Message cannot be empty"}), 400
+    if len(sanitized_message) > 500:
+        sanitized_message = sanitized_message[:500]
 
     # Ensure room exists
     if not rooms_collection.find_one({"name": room}):
@@ -651,7 +655,7 @@ def send_message():
         {
             "room": room,
             "username": username,
-            "message": message,
+            "message": sanitized_message,
             "timestamp": time.time(),
         }
     )
@@ -702,9 +706,4 @@ def get_stats():
 
 if __name__ == "__main__":
     app.logger.info("Starting application with Waitress")
-    user = users_collection.find_one({"username": "proplayer919"})
-    if user:
-        users_collection.update_one(
-            {"username": "proplayer919"}, {"$set": {"type": "admin"}}
-        )
     serve(app, host="0.0.0.0", port=5000, threads=4)
