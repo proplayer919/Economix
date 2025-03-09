@@ -752,6 +752,40 @@ function getStats() {
     });
 }
 
+function banUser() {
+  customPrompt("Enter username to ban:").then(username => {
+    if (!username) return;
+    fetch('/api/ban_user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ username: username })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          customAlert('User banned!').then(() => {
+            refreshAccount();
+          });
+        } else {
+          customAlert('Error banning user.');
+        }
+      });
+  });
+}
+
+function listUsers() {
+  fetch('/api/users', {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.users) {
+        customAlert(data.users.join(';;;'));
+      }
+    });
+}
+
 // Helper functions for auto-scrolling
 function isUserAtBottom(container) {
   // Allow a small threshold (e.g., 2 pixels) for precision issues.
@@ -772,11 +806,13 @@ document.getElementById('logout').addEventListener('click', () => {
 });
 
 // Admin Dashboard event listeners (for the new admin tab)
+document.getElementById('listUsersAdmin').addEventListener('click', listUsers);
 document.getElementById('editTokensAdmin').addEventListener('click', editTokens);
 document.getElementById('addAdminAdmin').addEventListener('click', addAdmin);
 document.getElementById('addModAdmin').addEventListener('click', addMod);
 document.getElementById('removeModAdmin').addEventListener('click', removeMod);
 document.getElementById('editTokensForUserAdmin').addEventListener('click', editTokensForUser);
+document.getElementById('banUserAdmin').addEventListener('click', banUser);
 
 // Interval to refresh account and market data
 setInterval(() => {

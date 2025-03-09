@@ -598,6 +598,38 @@ def delete_item():
     users_collection.update_one({"username": owner}, {"$pull": {"items": item_id}})
     items_collection.delete_one({"id": item_id})
     return jsonify({"success": True})
+  
+@app.route("/api/ban_user", methods=["POST"])
+@csrf.exempt
+@requires_admin
+def ban_user():
+    data = request.get_json()
+    username = data.get("username")
+
+    user = users_collection.find_one({"username": username})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    if user.get("type") == "admin":
+        return jsonify({"error": "Cannot ban an admin"}), 403
+
+    # Delete user's items
+    items_collection.delete_many({"owner": username})
+
+    # Delete user's messages
+    messages_collection.delete_many({"username": username})
+
+    # Delete the user
+    users_collection.delete_one({"username": username})
+
+    return jsonify({"success": True})
+  
+@app.route("/api/users", methods=["GET"])
+@requires_admin
+def get_users():
+    users = users_collection.find({}, {"_id": 0, "username": 1})
+    usernames = [user["username"] for user in users]
+    return jsonify({"usernames": usernames})
 
 
 @app.route("/api/send_message", methods=["POST"])
