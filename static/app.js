@@ -707,7 +707,13 @@ function refreshGlobalMessages() {
         data.messages.forEach(message => {
           const messageElement = document.createElement('div');
           messageElement.classList.add('message');
-          messageElement.innerHTML = `<b>${sanitizeHTML(message.username)}:</b> ${sanitizeHTML(message.message)}`;
+          
+          let bold = document.createElement('B'); // username holder
+          bold.innerText = message.username;
+          
+          messageElement.innerText = ": "+message.message
+          messageElement.prepend(bold);
+
           globalMessagesContainer.appendChild(messageElement);
         });
 
