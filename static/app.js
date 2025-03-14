@@ -707,11 +707,11 @@ function refreshGlobalMessages() {
         data.messages.forEach(message => {
           const messageElement = document.createElement('div');
           messageElement.classList.add('message');
-          
+
           let bold = document.createElement('B'); // username holder
           bold.innerText = message.username;
-          
-          messageElement.innerText = ": "+message.message
+
+          messageElement.innerText = ": " + message.message
           messageElement.prepend(bold);
 
           globalMessagesContainer.appendChild(messageElement);
@@ -798,6 +798,25 @@ function listUsers() {
     });
 }
 
+function deleteAccount() {
+  if (customConfirm("Are you sure you want to delete your account? All of your items and tokens will be irreversibly lost.")) {
+    fetch('/api/delete_account', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          localStorage.removeItem('token');
+          location.reload();
+        }
+        else {
+          customAlert("Failed to delete account.");
+        }
+      })
+  }
+}
+
 // Helper functions for auto-scrolling
 function isUserAtBottom(container) {
   // Allow a small threshold (e.g., 2 pixels) for precision issues.
@@ -813,6 +832,7 @@ document.getElementById('createItem').addEventListener('click', createItem);
 document.getElementById('mineItem').addEventListener('click', mineTokens);
 document.getElementById('takeItem').addEventListener('click', takeItem);
 document.getElementById('sendMessage').addEventListener('click', sendGlobalMessage);
+document.getElementById('deleteAccount').addEventListener('click', deleteAccount);
 document.getElementById('logout').addEventListener('click', () => {
   localStorage.removeItem('token');
 });

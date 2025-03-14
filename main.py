@@ -260,6 +260,22 @@ def get_account():
             "last_mine_time": user["last_mine_time"],
         }
     )
+    
+@app.route("/api/delete_account", methods=["POST"])
+def delete_account():
+    username = request.username
+
+    user = users_collection.find_one({"username": username})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    # Delete user's items
+    items_collection.delete_many({"owner": username})
+
+    # Delete the user
+    users_collection.delete_one({"username": username})
+
+    return jsonify({"success": True})
 
 
 @app.route("/api/create_item", methods=["POST"])
