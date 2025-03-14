@@ -228,7 +228,7 @@ def register():
 @app.route("/api/login", methods=["POST"])
 def login():
     data = request.get_json()
-    username = data.get("username", "").strip().lower()  # Sanitize input
+    username = data.get("username", "").strip()  # Sanitize input
     password = data.get("password")
 
     user = users_collection.find_one({"username": username})
