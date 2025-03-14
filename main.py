@@ -195,8 +195,8 @@ def register():
         return jsonify({"error": "Missing username or password"}), 400
 
     # Sanitize and validate username
-    username = username.strip().lower()
-    if not re.match(r"^[a-zA-Z0-9_-]{3,20}$", username):
+    validateUsername = username.strip()
+    if not re.match(r"^[a-zA-Z0-9_-]{3,20}$", validateUsername):
         return (
             jsonify(
                 {
