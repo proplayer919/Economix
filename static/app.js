@@ -799,22 +799,24 @@ function listUsers() {
 }
 
 function deleteAccount() {
-  if (customConfirm("Are you sure you want to delete your account? All of your items and tokens will be irreversibly lost.")) {
-    fetch('/api/delete_account', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          localStorage.removeItem('token');
-          location.reload();
-        }
-        else {
-          customAlert("Failed to delete account.");
-        }
+  customPrompt("Enter 'CONFIRM' to confirm you want to delete your account:").then(input => {
+    if (input === 'CONFIRM') {
+      fetch('/api/delete_account', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
       })
-  }
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            localStorage.removeItem('token');
+            location.reload();
+          }
+          else {
+            customAlert("Failed to delete account.");
+          }
+        })
+    }
+  });
 }
 
 // Helper functions for auto-scrolling
