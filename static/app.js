@@ -994,6 +994,15 @@ document.getElementById('logout').addEventListener('click', () => {
   location.reload();
 });
 
+// Interval
+setInterval(() => {
+  getStats();
+  refreshAccount();
+  refreshGlobalMessages();
+  refreshLeaderboard();
+  refreshMarket();
+}, 1000);
+
 // Admin Dashboard event listeners (for the new admin tab)
 document.getElementById('listUsersAdmin').addEventListener('click', listUsers);
 document.getElementById('editTokensAdmin').addEventListener('click', editTokens);
