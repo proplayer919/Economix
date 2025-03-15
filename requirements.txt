@@ -2,7 +2,4 @@ flask
 flask_cors
 werkzeug
 pymongo
-flask-socketio
-python-engineio
-python-socketio
 gunicorn
