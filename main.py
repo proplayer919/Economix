@@ -8,23 +8,16 @@ from logging.handlers import RotatingFileHandler
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_socketio import SocketIO, emit, join_room, leave_room
 from functools import wraps
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.errors import DuplicateKeyError
 import re
 import html
-from bson import json_util
 
 # Initialize Flask application
 app = Flask(__name__)
 app.config.update(
     SECRET_KEY=os.environ.get("FLASK_SECRET_KEY", "1234"),
-)
-
-# Initialize SocketIO
-socketio = SocketIO(
-    app, cors_allowed_origins=os.environ.get("CORS_ORIGINS", "").split(",")
 )
 
 # Security middleware
@@ -78,94 +71,6 @@ try:
 except Exception as e:
     app.logger.critical(f"Failed to load word lists: {str(e)}")
     raise
-
-
-# WebSocket Authentication
-@socketio.on("connect")
-def handle_connect():
-    token = request.args.get("token")
-    if not token:
-        app.logger.warning("WebSocket connection attempt without token")
-        return False
-    user = users_collection.find_one({"token": token})
-    if not user:
-        app.logger.warning("Invalid WebSocket token")
-        return False
-    request.username = user["username"]
-    app.logger.info(f"User {request.username} connected via WebSocket")
-    join_room(request.username)  # Join user-specific room
-
-
-@socketio.on("disconnect")
-def handle_disconnect():
-    app.logger.info(f"User {request.username} disconnected")
-
-
-# WebSocket Notification Functions
-def notify_user_update(username):
-    user = users_collection.find_one({"username": username})
-    if user:
-        user_data = json.loads(
-            json_util.dumps(
-                {
-                    "username": user["username"],
-                    "tokens": user["tokens"],
-                    "items": user["items"],
-                    "banned_until": user.get("banned_until"),
-                    "frozen": user.get("frozen", False),
-                }
-            )
-        )
-        emit("account_update", user_data, room=username)
-
-
-def notify_market_update():
-    market_items = list(
-        items_collection.find({"for_sale": True}, {"_id": 0, "item_secret": 0})
-    )
-    emit("market_update", json.loads(json_util.dumps(market_items)), broadcast=True)
-
-
-def notify_inventory_update(username):
-    user = users_collection.find_one({"username": username})
-    if user:
-        items = list(items_collection.find({"id": {"$in": user["items"]}}, {"_id": 0}))
-        emit("inventory_update", json.loads(json_util.dumps(items)), room=username)
-
-
-# WebSocket Chat Handlers
-@socketio.on("send_message")
-def handle_send_message(data):
-    room = data.get("room", "global")
-    message = html.escape(data.get("message", "").strip())
-
-    if len(message) == 0 or len(message) > 500:
-        return
-
-    message_data = {
-        "room": room,
-        "username": request.username,
-        "message": message,
-        "timestamp": time.time(),
-    }
-
-    messages_collection.insert_one(message_data)
-    emit("new_message", json.loads(json_util.dumps(message_data)), room=room)
-
-
-@socketio.on("join_room")
-def handle_join_room(data):
-    room = data.get("room", "global")
-    join_room(room)
-    emit("room_joined", {"room": room})
-
-
-@socketio.on("leave_room")
-def handle_leave_room(data):
-    room = data.get("room", "global")
-    leave_room(room)
-    emit("room_left", {"room": room})
-
 
 # Authentication middleware
 @app.before_request
@@ -518,8 +423,6 @@ def create_item():
             "$inc": {"tokens": -10},
         },
     )
-    socketio.start_background_task(notify_inventory_update, username)
-    socketio.start_background_task(notify_user_update, username)
     return jsonify(
         {k: v for k, v in new_item.items() if k != "_id" and k != "item_secret"}
     )
@@ -587,8 +490,6 @@ def sell_item():
         "price": price if not item["for_sale"] else 0,
     }
     items_collection.update_one({"id": item_id}, {"$set": update_data})
-    socketio.start_background_task(notify_inventory_update, username)
-    socketio.start_background_task(notify_market_update)
     return jsonify({"success": True})
 
 
@@ -643,11 +544,6 @@ def buy_item():
             session.abort_transaction()
             return jsonify({"error": str(e)}), 500
 
-    socketio.start_background_task(notify_inventory_update, buyer_username)
-    socketio.start_background_task(notify_inventory_update, item["owner"])
-    socketio.start_background_task(notify_user_update, buyer_username)
-    socketio.start_background_task(notify_user_update, item["owner"])
-    socketio.start_background_task(notify_market_update)
     return jsonify({"success": True})
 
 

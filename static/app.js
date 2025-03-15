@@ -9,56 +9,7 @@ const TOKEN_MINE_COOLDOWN = 600;
 let items = [];
 let account = {};
 let token = localStorage.getItem('token');
-let socket = null;
 let activeChatTab = 'global';
-
-
-// Initialize WebSocket Connection
-function initializeWebSocket() {
-  if (!token || socket) return;
-
-  socket = io(window.location.origin, {
-    query: { token },
-    reconnection: true,
-    reconnectionDelay: 1000,
-    reconnectionAttempts: Infinity
-  });
-
-  // Real-time Updates
-  socket.on('account_update', (data) => {
-    account = data;
-    document.getElementById('tokens').textContent = data.tokens;
-    if (data.banned) handleBanState(data);
-    if (data.frozen) handleFreezeState();
-  });
-
-  socket.on('inventory_update', (newItems) => {
-    items = newItems;
-    renderInventory(items);
-  });
-
-  socket.on('market_update', (marketItems) => {
-    renderMarketplace(marketItems);
-  });
-
-  socket.on('new_message', (message) => {
-    const messagesContainer = document.getElementById('globalMessages');
-    const wasAtBottom = isUserAtBottom(messagesContainer);
-
-    const messageElement = document.createElement('div');
-    messageElement.classList.add('message');
-    messageElement.innerHTML = `<b>${message.username}</b>: ${message.message}`;
-
-    messagesContainer.appendChild(messageElement);
-    if (wasAtBottom) scrollToBottom(messagesContainer);
-  });
-
-  socket.on('connect', () => {
-    socket.emit('join_room', { room: 'global' });
-    refreshLeaderboard();
-    getStats();
-  });
-}
 
 // Custom modal functions
 function customAlert(message) {
@@ -189,7 +140,6 @@ function handleLogin() {
         localStorage.setItem('token', data.token);
         token = data.token;
         showMainContent();
-        initializeWebSocket();
         refreshAccount();
       }
     });
@@ -993,6 +943,5 @@ getStats();
 
 if (token) {
   showMainContent();
-  initializeWebSocket();
   refreshAccount();
 }
