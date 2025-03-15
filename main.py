@@ -153,7 +153,7 @@ def generate_item(owner):
                 weights.append(1 / items[choice]["rarity"])
         return random.choices(choices, weights=weights, k=1)[0]
       
-    rarity = random.uniform(0.1, 100)
+    rarity = round(random.uniform(0.1, 100), 1)
 
     noun = weighted_choice(NOUNS, special_case=True)
     return {
@@ -325,7 +325,7 @@ def get_account():
 
     for item_id in user["items"]:
         item = items_collection.find_one({"id": item_id})
-        if "rarity" not in item or "level" not in item:
+        if "rarity" not in item or "level" not in item or item.get("rarity", 0) < 0.01:
             items_collection.update_one(
                 {"id": item_id}, {"$set": {"rarity": random.uniform(0.1, 100)}}
             )
