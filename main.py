@@ -129,6 +129,7 @@ def requires_mod(f):
 
     return decorated
 
+
 # Unbanned requirement decorator
 def requires_unbanned(f):
     @wraps(f)
@@ -141,6 +142,7 @@ def requires_unbanned(f):
 
     return decorated
 
+
 # Calculate rarity
 def calculate_rarity(item):
     rarity = 0
@@ -148,7 +150,15 @@ def calculate_rarity(item):
     rarity += MATERIALS[item["name"]["material"]]
     rarity += NOUNS[item["name"]["noun"]]["rarity"]
     rarity += SUFFIXES[item["name"]["suffix"]]
-    return (rarity / (sum(ADJECTIVES.values()) + sum(MATERIALS.values()) + sum(item["rarity"] for item in NOUNS.values()) + sum(SUFFIXES.values()))) * 100
+    return (
+        rarity
+        / (
+            sum(ADJECTIVES.values())
+            + sum(MATERIALS.values())
+            + sum(item["rarity"] for item in NOUNS.values())
+            + sum(SUFFIXES.values())
+        )
+    ) * 100
 
 
 # Item generation function
@@ -202,7 +212,8 @@ def calculate_rarity(item):
 
     # Overall probability is the product of the individual chances
     return p_adj * p_mat * p_noun * p_suf
-  
+
+
 def get_level(rarity):
     if rarity <= 0.001:
         return "Godlike"
@@ -220,7 +231,6 @@ def get_level(rarity):
         return "Scrap"
     else:
         return "Trash"
-      
 
 
 # Utilty function
@@ -282,6 +292,7 @@ def register():
                 "token": None,
                 "banned_until": None,
                 "banned_reason": None,
+                "banned": False,
                 "frozen": False,
             }
         )
@@ -310,22 +321,36 @@ def get_account():
     user = users_collection.find_one({"username": request.username})
     if not user:
         return jsonify({"error": "User not found"}), 404
-      
-    if "banned_until" not in user or "banned_reason" not in user:
-        users_collection.update_one({"username": request.username}, {"$set": {"banned_until": None, "banned_reason": None}})
-        
+
+    if "banned_until" not in user or "banned_reason" not in user or "banned" not in user:
+        users_collection.update_one(
+            {"username": request.username},
+            {"$set": {"banned_until": None, "banned_reason": None, "banned": False}},
+        )
+
     if "frozen" not in user:
-        users_collection.update_one({"username": request.username}, {"$set": {"frozen": False}})
-      
-    if user.get("banned_until", None) and user["banned_until"] < time.time() and user["banned_until"] != 0:
-        users_collection.update_one({"username": request.username}, {"$set": {"banned_until": None, "banned_reason": None}})
-        
+        users_collection.update_one(
+            {"username": request.username}, {"$set": {"frozen": False}}
+        )
+
+    if user.get("banned_until", None) and (
+        user["banned_until"] < time.time() and user["banned_until"] != 0
+    ):
+        users_collection.update_one(
+            {"username": request.username},
+            {"$set": {"banned_until": None, "banned_reason": None}},
+        )
+
     for item_id in user["items"]:
         item = items_collection.find_one({"id": item_id})
         if "rarity" not in item:
-            items_collection.update_one({"id": item_id}, {"$set": {"rarity": calculate_rarity(item)}})
+            items_collection.update_one(
+                {"id": item_id}, {"$set": {"rarity": calculate_rarity(item)}}
+            )
         if "level" not in item:
-            items_collection.update_one({"id": item_id}, {"$set": {"level": get_level(calculate_rarity(item))}})
+            items_collection.update_one(
+                {"id": item_id}, {"$set": {"level": get_level(calculate_rarity(item))}}
+            )
 
     # Exclude _id from the items query
     items = items_collection.find({"id": {"$in": user["items"]}}, {"_id": 0})
@@ -341,9 +366,11 @@ def get_account():
             "last_mine_time": user["last_mine_time"],
             "banned_until": user.get("banned_until"),
             "banned_reason": user.get("banned_reason"),
+            "banned": user.get("banned"),
             "frozen": user.get("frozen"),
         }
     )
+
 
 @app.route("/api/delete_account", methods=["POST"])
 @requires_unbanned
@@ -700,6 +727,7 @@ def delete_item():
     items_collection.delete_one({"id": item_id})
     return jsonify({"success": True})
 
+
 @app.route("/api/ban_user", methods=["POST"])
 @requires_admin
 def ban_user():
@@ -734,8 +762,12 @@ def ban_user():
         elif length[-1].lower() == "y":
             end_time = now + 60 * 60 * 24 * 365 * int(length[:-1])
 
-    users_collection.update_one({"username": username}, {"$set": {"banned_until": end_time, "banned_reason": reason}})
+    users_collection.update_one(
+        {"username": username},
+        {"$set": {"banned_until": end_time, "banned_reason": reason}},
+    )
     return jsonify({"success": True})
+
 
 @app.route("/api/unban_user", methods=["POST"])
 @requires_admin
@@ -747,8 +779,11 @@ def unban_user():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    users_collection.update_one({"username": username}, {"$set": {"banned_until": None, "banned_reason": None}})
+    users_collection.update_one(
+        {"username": username}, {"$set": {"banned_until": None, "banned_reason": None}}
+    )
     return jsonify({"success": True})
+
 
 @app.route("/api/freeze_user", methods=["POST"])
 @requires_admin
@@ -763,6 +798,7 @@ def freeze_user():
     users_collection.update_one({"username": username}, {"$set": {"frozen": True}})
     return jsonify({"success": True})
 
+
 @app.route("/api/unfreeze_user", methods=["POST"])
 @requires_admin
 def unfreeze_user():
@@ -775,6 +811,7 @@ def unfreeze_user():
 
     users_collection.update_one({"username": username}, {"$set": {"frozen": False}})
     return jsonify({"success": True})
+
 
 @app.route("/api/users", methods=["GET"])
 @requires_admin

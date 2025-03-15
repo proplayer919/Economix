@@ -184,7 +184,7 @@ function refreshAccount() {
         return;
       }
 
-      if (data.banned_until >= 0) {
+      if (data.banned) {
         const bannedUntil = new Date(data.banned_until);
         document.getElementById('mainContent').style.display = 'none';
         document.getElementById('bannedPage').style.display = 'block';
@@ -923,12 +923,6 @@ document.getElementById('takeItem').addEventListener('click', takeItem);
 document.getElementById('sendMessage').addEventListener('click', sendGlobalMessage);
 document.getElementById('deleteAccount').addEventListener('click', deleteAccount);
 document.getElementById('logout').addEventListener('click', () => {
-  localStorage.removeItem('token');
-});
-document.getElementById('bannedLogout').addEventListener('click', () => {
-  localStorage.removeItem('token');
-});
-document.getElementById('frozenLogout').addEventListener('click', () => {
   localStorage.removeItem('token');
 });
 

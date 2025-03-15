@@ -81,6 +81,7 @@ body {
 .card-center {
   text-align: center;
   max-width: fit-content;
+  margin: 0 auto;
 }
 
 .auth-form {
