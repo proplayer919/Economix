@@ -290,6 +290,9 @@ def get_account():
             "items": user_items,
             "last_item_time": user["last_item_time"],
             "last_mine_time": user["last_mine_time"],
+            "banned_until": user.get("banned_until"),
+            "banned_reason": user.get("banned_reason"),
+            "frozen": user.get("frozen"),
         }
     )
 
@@ -371,11 +374,9 @@ def market():
     username = request.username
     # Exclude _id from the items query
     items = items_collection.find(
-        {"for_sale": True, "owner": {"$ne": username}}, {"_id": 0}
+        {"for_sale": True, "owner": {"$ne": username}}, {"_id": 0, "item_secret": 0}
     )
-    return jsonify(
-        [{k: v for k, v in item.items() if k != "item_secret"} for item in items]
-    )
+    return jsonify(list(items))
 
 
 @app.route("/api/sell_item", methods=["POST"])
