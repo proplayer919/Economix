@@ -295,12 +295,6 @@ textarea:focus {
   margin-top: 1rem;
 }
 
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 1rem;
-}
-
 /* Links and Footer */
 a {
   text-decoration: underline;
