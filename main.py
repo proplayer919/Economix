@@ -181,6 +181,48 @@ def generate_item(owner):
     }
 
 
+def calculate_rarity(item):
+    name = item.get("name", {})
+    adjective_key = name.get("adjective")
+    material_key = name.get("material")
+    noun_key = name.get("noun")
+    suffix_key = name.get("suffix")
+
+    # Calculate the chance for each component based on its relative weight
+    total_adj = sum(ADJECTIVES.values())
+    total_mat = sum(MATERIALS.values())
+    total_noun = sum(entry.get("rarity", 0) for entry in NOUNS.values())
+    total_suf = sum(SUFFIXES.values())
+
+    # Retrieve individual weights; default to 0 if not found
+    p_adj = ADJECTIVES.get(adjective_key, 0) / total_adj if total_adj else 0
+    p_mat = MATERIALS.get(material_key, 0) / total_mat if total_mat else 0
+    p_noun = NOUNS.get(noun_key, {}).get("rarity", 0) / total_noun if total_noun else 0
+    p_suf = SUFFIXES.get(suffix_key, 0) / total_suf if total_suf else 0
+
+    # Overall probability is the product of the individual chances
+    return p_adj * p_mat * p_noun * p_suf
+  
+def get_level(rarity):
+    if rarity <= 0.001:
+        return "Godlike"
+    elif rarity <= 0.01:
+        return "Legendary"
+    elif rarity <= 0.05:
+        return "Epic"
+    elif rarity <= 0.1:
+        return "Rare"
+    elif rarity <= 0.25:
+        return "Uncommon"
+    elif rarity <= 0.5:
+        return "Common"
+    elif rarity <= 0.75:
+        return "Scrap"
+    else:
+        return "Trash"
+      
+
+
 # Utilty function
 def split_name(name):
     # split the name into adjective, material, noun, suffix, and number
@@ -277,6 +319,13 @@ def get_account():
       
     if user.get("banned_until", None) and user["banned_until"] < time.time() and user["banned_until"] != 0:
         users_collection.update_one({"username": request.username}, {"$set": {"banned_until": None, "banned_reason": None}})
+        
+    for item_id in user["items"]:
+        item = items_collection.find_one({"id": item_id})
+        if "rarity" not in item:
+            items_collection.update_one({"id": item_id}, {"$set": {"rarity": calculate_rarity(item)}})
+        if "level" not in item:
+            items_collection.update_one({"id": item_id}, {"$set": {"level": get_level(calculate_rarity(item))}})
 
     # Exclude _id from the items query
     items = items_collection.find({"id": {"$in": user["items"]}}, {"_id": 0})

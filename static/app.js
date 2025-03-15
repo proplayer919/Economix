@@ -272,7 +272,7 @@ function renderInventory(inventoryItems) {
 
   pagedItems.forEach(item => {
     const li = document.createElement('li');
-    li.textContent = `${item.name.icon} ${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number} ${item.for_sale ? "(For Sale)" : ""}`;
+    li.textContent = `${item.name.icon} ${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number} ${item.for_sale ? `(For Sale for ${item.price} tokens)` : ""} - Rarity: ${item.level} ${item.rarity}`;
 
     const sellBtn = document.createElement('button');
     sellBtn.classList.add('btn', 'btn-secondary');
@@ -924,7 +924,12 @@ document.getElementById('sendMessage').addEventListener('click', sendGlobalMessa
 document.getElementById('deleteAccount').addEventListener('click', deleteAccount);
 document.getElementById('logout').addEventListener('click', () => {
   localStorage.removeItem('token');
-  location.reload();
+});
+document.getElementById('bannedLogout').addEventListener('click', () => {
+  localStorage.removeItem('token');
+});
+document.getElementById('frozenLogout').addEventListener('click', () => {
+  localStorage.removeItem('token');
 });
 
 // Admin Dashboard event listeners (for the new admin tab)
