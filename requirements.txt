@@ -5,3 +5,4 @@ pymongo
 flask-socketio
 python-engineio
 python-socketio
+gunicorn
