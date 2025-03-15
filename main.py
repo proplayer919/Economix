@@ -421,6 +421,11 @@ def get_account():
             "banned_reason": user.get("banned_reason"),
             "banned": user.get("banned"),
             "frozen": user.get("frozen"),
+            "muted": user.get("muted"),
+            "muted_until": user.get("muted_until"),
+            "exp": user.get("exp"),
+            "level": user.get("level"),
+            "history": user.get("history"),
         }
     )
 
