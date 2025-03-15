@@ -80,10 +80,8 @@ def authenticate_user():
     if request.method == "OPTIONS" or request.endpoint in [
         "register",
         "login",
-        "restore_account",
         "index",
         "static_file",
-        "view_logs",
         "get_stats",
     ]:
         return
@@ -130,6 +128,27 @@ def requires_mod(f):
         return f(*args, **kwargs)
 
     return decorated
+
+# Unbanned requirement decorator
+def requires_unbanned(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user = users_collection.find_one({"username": request.username})
+        if user.get("banned_until", None):
+            app.logger.warning(f"User is banned: {request.username}")
+            return jsonify({"error": "You are banned"}), 403
+        return f(*args, **kwargs)
+
+    return decorated
+
+# Calculate rarity
+def calculate_rarity(item):
+    rarity = 0
+    rarity += ADJECTIVES[item["name"]["adjective"]]
+    rarity += MATERIALS[item["name"]["material"]]
+    rarity += NOUNS[item["name"]["noun"]]["rarity"]
+    rarity += SUFFIXES[item["name"]["suffix"]]
+    return (rarity / (sum(ADJECTIVES.values()) + sum(MATERIALS.values()) + sum(item["rarity"] for item in NOUNS.values()) + sum(SUFFIXES.values()))) * 100
 
 
 # Item generation function
@@ -210,6 +229,7 @@ def register():
         hashed_password = generate_password_hash(password)
         users_collection.insert_one(
             {
+                "created_at": int(time.time()),
                 "username": username,
                 "password_hash": hashed_password,
                 "type": "user",
@@ -218,6 +238,9 @@ def register():
                 "last_mine_time": 0,
                 "items": [],
                 "token": None,
+                "banned_until": None,
+                "banned_reason": None,
+                "frozen": False,
             }
         )
         return jsonify({"success": True}), 201
@@ -245,6 +268,15 @@ def get_account():
     user = users_collection.find_one({"username": request.username})
     if not user:
         return jsonify({"error": "User not found"}), 404
+      
+    if "banned_until" not in user or "banned_reason" not in user:
+        users_collection.update_one({"username": request.username}, {"$set": {"banned_until": None, "banned_reason": None}})
+        
+    if "frozen" not in user:
+        users_collection.update_one({"username": request.username}, {"$set": {"frozen": False}})
+      
+    if user.get("banned_until", None) and user["banned_until"] < time.time():
+        users_collection.update_one({"username": request.username}, {"$set": {"banned_until": None, "banned_reason": None}})
 
     # Exclude _id from the items query
     items = items_collection.find({"id": {"$in": user["items"]}}, {"_id": 0})
@@ -260,8 +292,9 @@ def get_account():
             "last_mine_time": user["last_mine_time"],
         }
     )
-    
+
 @app.route("/api/delete_account", methods=["POST"])
+@requires_unbanned
 def delete_account():
     username = request.username
 
@@ -279,6 +312,7 @@ def delete_account():
 
 
 @app.route("/api/create_item", methods=["POST"])
+@requires_unbanned
 def create_item():
     username = request.username
     now = time.time()
@@ -310,6 +344,7 @@ def create_item():
 
 
 @app.route("/api/mine_tokens", methods=["POST"])
+@requires_unbanned
 def mine_tokens():
     username = request.username
     now = time.time()
@@ -331,6 +366,7 @@ def mine_tokens():
 
 
 @app.route("/api/market", methods=["GET"])
+@requires_unbanned
 def market():
     username = request.username
     # Exclude _id from the items query
@@ -343,6 +379,7 @@ def market():
 
 
 @app.route("/api/sell_item", methods=["POST"])
+@requires_unbanned
 def sell_item():
     data = request.get_json()
     item_id = data.get("item_id")
@@ -374,6 +411,7 @@ def sell_item():
 
 
 @app.route("/api/buy_item", methods=["POST"])
+@requires_unbanned
 def buy_item():
     data = request.get_json()
     item_id = data.get("item_id")
@@ -427,6 +465,7 @@ def buy_item():
 
 
 @app.route("/api/leaderboard", methods=["GET"])
+@requires_unbanned
 def leaderboard():
     pipeline = [
         {"$sort": {"tokens": DESCENDING}},
@@ -454,6 +493,7 @@ def leaderboard():
 
 
 @app.route("/api/take_item", methods=["POST"])
+@requires_unbanned
 def take_item():
     data = request.get_json()
     item_secret = data.get("item_secret")
@@ -615,6 +655,8 @@ def delete_item():
 def ban_user():
     data = request.get_json()
     username = data.get("username")
+    length = data.get("length", "")
+    reason = data.get("reason", "No reason provided")
 
     user = users_collection.find_one({"username": username})
     if not user:
@@ -623,15 +665,65 @@ def ban_user():
     if user.get("type") == "admin":
         return jsonify({"error": "Cannot ban an admin"}), 403
 
-    # Delete user's items
-    items_collection.delete_many({"owner": username})
+    now = time.time()
+    if not length:
+        # Ban forever
+        end_time = 0
+    else:
+        # Parse duration
+        if length[-1].lower() == "s":
+            end_time = now + int(length[:-1])
+        elif length[-1].lower() == "m":
+            end_time = now + 60 * int(length[:-1])
+        elif length[-1].lower() == "h":
+            end_time = now + 60 * 60 * int(length[:-1])
+        elif length[-1].lower() == "d":
+            end_time = now + 60 * 60 * 24 * int(length[:-1])
+        elif length[-1].lower() == "w":
+            end_time = now + 60 * 60 * 24 * 7 * int(length[:-1])
+        elif length[-1].lower() == "y":
+            end_time = now + 60 * 60 * 24 * 365 * int(length[:-1])
 
-    # Delete user's messages
-    messages_collection.delete_many({"username": username})
+    users_collection.update_one({"username": username}, {"$set": {"banned_until": end_time, "ban_reason": reason}})
+    return jsonify({"success": True})
 
-    # Delete the user
-    users_collection.delete_one({"username": username})
+@app.route("/api/unban_user", methods=["POST"])
+@requires_admin
+def unban_user():
+    data = request.get_json()
+    username = data.get("username")
 
+    user = users_collection.find_one({"username": username})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    users_collection.update_one({"username": username}, {"$set": {"banned_until": None, "ban_reason": None}})
+    return jsonify({"success": True})
+
+@app.route("/api/freeze_user", methods=["POST"])
+@requires_admin
+def freeze_user():
+    data = request.get_json()
+    username = data.get("username")
+
+    user = users_collection.find_one({"username": username})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    users_collection.update_one({"username": username}, {"$set": {"frozen": True}})
+    return jsonify({"success": True})
+
+@app.route("/api/unfreeze_user", methods=["POST"])
+@requires_admin
+def unfreeze_user():
+    data = request.get_json()
+    username = data.get("username")
+
+    user = users_collection.find_one({"username": username})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    users_collection.update_one({"username": username}, {"$set": {"frozen": False}})
     return jsonify({"success": True})
 
 @app.route("/api/users", methods=["GET"])
@@ -643,6 +735,7 @@ def get_users():
 
 
 @app.route("/api/send_message", methods=["POST"])
+@requires_unbanned
 def send_message():
     data = request.get_json()
     room = data.get("room", "").strip()
@@ -679,6 +772,7 @@ def send_message():
 
 
 @app.route("/api/get_messages", methods=["GET"])
+@requires_unbanned
 def get_messages():
     room = request.args.get("room")
     if not room:

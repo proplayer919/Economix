@@ -120,13 +120,16 @@
                 <h2>Admin Dashboard</h2>
               </div>
               <div class="actions">
-                <button class="btn btn-primary" id="listUsersAdmin">List Users</button>
-                <button class="btn btn-primary" id="editTokensAdmin">Edit Tokens</button>
-                <button class="btn btn-primary" id="editTokensForUserAdmin">Edit Tokens For User</button>
-                <button class="btn btn-success" id="addAdminAdmin">Add Admin</button>
-                <button class="btn btn-success" id="addModAdmin">Add Mod</button>
-                <button class="btn btn-danger" id="removeModAdmin">Remove Mod</button>
-                <button class="btn btn-danger" id="banUserAdmin">Ban User</button>
+                <button class="btn btn-primary" id="listUsersAdmin">👥 List Users</button>
+                <button class="btn btn-primary" id="editTokensAdmin">💸 Edit Tokens</button>
+                <button class="btn btn-primary" id="editTokensForUserAdmin">💸 Edit Tokens For User</button>
+                <button class="btn btn-success" id="addAdminAdmin">🤝 Add Admin</button>
+                <button class="btn btn-success" id="addModAdmin">🤝 Add Mod</button>
+                <button class="btn btn-danger" id="removeModAdmin">🚫 Remove Mod</button>
+                <button class="btn btn-danger" id="banUserAdmin">⛓️ Ban User</button>
+                <button class="btn btn-success" id="unbanUserAdmin">⚖️ Unban User</button>
+                <button class="btn btn-danger" id="freezeUserAdmin">❄️ Freeze User</button>
+                <button class="btn btn-success" id="unfreezeUserAdmin">🧊 Unfreeze User</button>
               </div>
             </div>
           </div>
@@ -185,6 +188,26 @@
               <ul class="item-list" id="leaderboard"></ul>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Banned Page -->
+    <div id="bannedPage" style="display: none;">
+      <div class="card card-center">
+        <div class="card-header">
+          <h2>🚫 Your account has been banned.</h2>
+        </div>
+        <p>Reason: <span id="banReason"></span></p>
+        <p>Expires: <span id="banExpires"></span></p>
+      </div>
+    </div>
+
+    <!-- Frozen Page -->
+    <div id="frozenPage" style="display: none;">
+      <div class="card card-center">
+        <div class="card-header">
+          <h2>❄️ Your account has been frozen for investigation.</h2>
         </div>
       </div>
     </div>

@@ -1,5 +1,3 @@
-/items.json
-/users.json
 .env
-/data
 *.log
+*-test.py

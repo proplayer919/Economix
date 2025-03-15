@@ -77,6 +77,12 @@ body {
   position: relative;
 }
 
+.card-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .auth-form {
   display: flex;
   flex-direction: column;

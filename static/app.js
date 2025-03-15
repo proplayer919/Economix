@@ -171,7 +171,6 @@ function showMainContent() {
   document.getElementById('mainContent').style.display = 'block';
 }
 
-// Modified API functions with auth headers
 function refreshAccount() {
   const token = localStorage.getItem('token');
   fetch('/api/account', {
@@ -182,6 +181,21 @@ function refreshAccount() {
       if (data.error) {
         localStorage.removeItem('token');
         location.reload();
+        return;
+      }
+
+      if (data.banned_until) {
+        const bannedUntil = new Date(data.banned_until);
+        document.getElementById('mainContent').style.display = 'none';
+        document.getElementById('bannedPage').style.display = 'block';
+        document.getElementById('banExpires').textContent = bannedUntil.toLocaleString();
+        document.getElementById('banReason').textContent = data.banned_reason;
+        return;
+      }
+
+      if (data.frozen) {
+        document.getElementById('mainContent').style.display = 'none';
+        document.getElementById('frozenPage').style.display = 'block';
         return;
       }
 
@@ -785,6 +799,69 @@ function banUser() {
   });
 }
 
+function unbanUser() {
+  customPrompt("Enter username to unban:").then(username => {
+    if (!username) return;
+    fetch('/api/unban_user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ username: username })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          customAlert('User unbanned!').then(() => {
+            refreshAccount();
+          });
+        } else {
+          customAlert('Error unbanning user.');
+        }
+      });
+  });
+}
+
+function freezeUser() {
+  customPrompt("Enter username to freeze:").then(username => {
+    if (!username) return;
+    fetch('/api/freeze_user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ username: username })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          customAlert('User frozen!').then(() => {
+            refreshAccount();
+          });
+        } else {
+          customAlert('Error freezing user.');
+        }
+      });
+  });
+}
+
+function unfreezeUser() {
+  customPrompt("Enter username to unfreeze:").then(username => {
+    if (!username) return;
+    fetch('/api/unfreeze_user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ username: username })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          customAlert('User unfrozen!').then(() => {
+            refreshAccount();
+          });
+        } else {
+          customAlert('Error unfreezing user.');
+        }
+      });
+  });
+}
+
 function listUsers() {
   fetch('/api/users', {
     method: 'GET',
@@ -847,6 +924,9 @@ document.getElementById('addModAdmin').addEventListener('click', addMod);
 document.getElementById('removeModAdmin').addEventListener('click', removeMod);
 document.getElementById('editTokensForUserAdmin').addEventListener('click', editTokensForUser);
 document.getElementById('banUserAdmin').addEventListener('click', banUser);
+document.getElementById('unbanUserAdmin').addEventListener('click', unbanUser);
+document.getElementById('freezeUserAdmin').addEventListener('click', freezeUser);
+document.getElementById('unfreezeUserAdmin').addEventListener('click', unfreezeUser);
 
 // Interval to refresh account and market data
 setInterval(() => {
