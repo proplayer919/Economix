@@ -39,7 +39,7 @@
               <h2>Welcome to 💸 Economix v1.8</h2>
               <input type="text" id="loginUsername" placeholder="Username" />
               <input type="password" id="loginPassword" placeholder="Password" />
-              <button class="btn btn-primary" onclick="handleLogin()">Login</button>
+              <button class="btn btn-primary" onclick="handleLogin()">🔑 Login</button>
             </div>
           </div>
           <div class="card">
@@ -47,7 +47,7 @@
               <h2>Create Account</h2>
               <input type="text" id="registerUsername" placeholder="Username" />
               <input type="password" id="registerPassword" placeholder="Password" />
-              <button class="btn btn-success" onclick="handleRegister()">Register</button>
+              <button class="btn btn-success" onclick="handleRegister()">🎫 Register</button>
             </div>
           </div>
           <div class="card">
@@ -76,22 +76,19 @@
               <p id="roleDisplay"></p>
               <p>Tokens: <strong id="tokens">0</strong></p>
             </div>
-            <div>
-              <button class="btn btn-danger" id="logout">Logout</button>
-              <button class="btn btn-danger" id="deleteAccount">Delete Account</button>
-            </div>
           </div>
         </div>
 
         <!-- Tab Navigation -->
         <div class="tabs">
-          <button class="tab active" data-tab="dashboard">Dashboard</button>
-          <button class="tab" data-tab="adminDashboard" id="adminDashboardTabButton" style="display: none;">Admin
+          <button class="tab active" data-tab="dashboard">📊 Dashboard</button>
+          <button class="tab" data-tab="adminDashboard" id="adminDashboardTabButton" style="display: none;">📈 Admin
             Dashboard</button>
-          <button class="tab" data-tab="inventory">Inventory</button>
-          <button class="tab" data-tab="market">Market</button>
-          <button class="tab" data-tab="chat">Chat</button>
-          <button class="tab" data-tab="leaderboard">Leaderboard</button>
+          <button class="tab" data-tab="inventory">📦 Inventory</button>
+          <button class="tab" data-tab="market">🛒 Market</button>
+          <button class="tab" data-tab="chat">💬 Chat</button>
+          <button class="tab" data-tab="leaderboard">🏆 Leaderboard</button>
+          <button class="tab" data-tab="settings">⚙️ Settings</button>
         </div>
 
         <!-- Tab Contents -->
@@ -173,7 +170,7 @@
                 <div class="message-container" id="globalMessages"></div>
                 <div class="message-input">
                   <input type="text" id="messageInput" placeholder="Type your message..." />
-                  <button id="sendMessage">Send</button>
+                  <button id="sendMessage">📨 Send</button>
                 </div>
               </div>
             </div>
@@ -186,6 +183,19 @@
                 <h2>Leaderboard</h2>
               </div>
               <ul class="item-list" id="leaderboard"></ul>
+            </div>
+          </div>
+
+          <!-- Settings Tab -->
+          <div class="tab-content" id="tab-settings">
+            <div class="card">
+              <div class="card-header">
+                <h2>Settings</h2>
+              </div>
+              <div class="actions">
+                <button class="btn btn-danger" id="logout">↪️ Logout</button>
+                <button class="btn btn-danger" id="deleteAccount">🗑️ Delete Account</button>
+              </div>
             </div>
           </div>
         </div>
@@ -222,8 +232,8 @@
             style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 0.5rem; margin-top: 1rem;" />
         </div>
         <div class="modal-actions">
-          <button id="modalCancel" class="btn btn-danger">Cancel</button>
-          <button id="modalOk" class="btn btn-primary">OK</button>
+          <button id="modalCancel" class="btn btn-danger">❌ Cancel</button>
+          <button id="modalOk" class="btn btn-primary">✅ OK</button>
         </div>
       </div>
     </div>
