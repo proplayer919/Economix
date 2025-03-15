@@ -781,21 +781,27 @@ function getStats() {
 function banUser() {
   customPrompt("Enter username to ban:").then(username => {
     if (!username) return;
-    fetch('/api/ban_user', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ username: username })
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          customAlert('User banned!').then(() => {
-            refreshAccount();
+    customPrompt("Enter reason for banning:").then(reason => {
+      if (!reason) return;
+      customPrompt("Enter length of ban (e.g. 1d, 1w, 1m, 1y, perma):").then(length => {
+        if (!length) return;
+        fetch('/api/ban_user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ username: username, reason: reason, length: length })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              customAlert('User banned!').then(() => {
+                refreshAccount();
+              });
+            } else {
+              customAlert('Error banning user.');
+            }
           });
-        } else {
-          customAlert('Error banning user.');
-        }
       });
+    });
   });
 }
 

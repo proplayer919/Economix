@@ -655,7 +655,7 @@ def delete_item():
 def ban_user():
     data = request.get_json()
     username = data.get("username")
-    length = data.get("length", "")
+    length = data.get("length", None)
     reason = data.get("reason", "No reason provided")
 
     user = users_collection.find_one({"username": username})
@@ -666,7 +666,7 @@ def ban_user():
         return jsonify({"error": "Cannot ban an admin"}), 403
 
     now = time.time()
-    if not length:
+    if not length or length.lower() == "perma":
         # Ban forever
         end_time = 0
     else:
