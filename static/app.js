@@ -274,7 +274,7 @@ function renderInventory(inventoryItems) {
 
   pagedItems.forEach(item => {
     const li = document.createElement('li');
-    li.textContent = `${item.name.icon} ${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number} ${item.for_sale ? `(For Sale for ${item.price} tokens)` : ""}`;
+    li.textContent = `${item.name.icon} ${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number} (${item.rarity} ${item.level}) ${item.for_sale ? `(For Sale for ${item.price} tokens)` : ""}`;
 
     const sellBtn = document.createElement('button');
     sellBtn.classList.add('btn', 'btn-secondary');
@@ -352,7 +352,7 @@ function renderMarketplace(marketItems) {
 
   pagedItems.forEach(item => {
     const li = document.createElement('li');
-    li.textContent = `${item.name.icon} ${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number} - Price: ${item.price} tokens - Sold by: ${item.owner}`;
+    li.textContent = `${item.name.icon} ${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number} (${item.rarity} ${item.level}) - Price: ${item.price} tokens - Sold by: ${item.owner}`;
     if (item.owner !== account.username) {
       const buyBtn = document.createElement('button');
       buyBtn.classList.add('btn', 'btn-primary');
@@ -645,21 +645,23 @@ function removeMod() {
 function editItem(item_id) {
   customPrompt("Enter new name (blank for no change):").then(newName => {
     customPrompt("Enter new icon (blank for no change):").then(newIcon => {
-      fetch('/api/edit_item', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ item_id: item_id, new_name: newName, new_icon: newIcon })
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            customAlert('Item edited!').then(() => {
-              refreshAccount();
-            });
-          } else {
-            customAlert('Error editing item.');
-          }
-        });
+      customPrompt("Enter new rarity (blank for no change):").then(newRarity => {
+        fetch('/api/edit_item', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ item_id: item_id, new_name: newName, new_icon: newIcon, new_rarity: newRarity })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              customAlert('Item edited!').then(() => {
+                refreshAccount();
+              });
+            } else {
+              customAlert('Error editing item.');
+            }
+          });
+      });
     });
   });
 }

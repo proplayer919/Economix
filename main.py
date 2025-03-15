@@ -142,30 +142,6 @@ def requires_unbanned(f):
     return decorated
 
 
-# Calculate rarity
-def calculate_rarity(item):
-    name = item.get("name", {})
-    adjective_key = name.get("adjective")
-    material_key = name.get("material")
-    noun_key = name.get("noun")
-    suffix_key = name.get("suffix")
-
-    # Calculate the chance for each component based on its relative weight
-    total_adj = sum(ADJECTIVES.values())
-    total_mat = sum(MATERIALS.values())
-    total_noun = sum(entry.get("rarity", 0) for entry in NOUNS.values())
-    total_suf = sum(SUFFIXES.values())
-
-    # Retrieve individual weights; default to 0 if not found
-    p_adj = ADJECTIVES.get(adjective_key, 0) / total_adj if total_adj else 0
-    p_mat = MATERIALS.get(material_key, 0) / total_mat if total_mat else 0
-    p_noun = NOUNS.get(noun_key, {}).get("rarity", 0) / total_noun if total_noun else 0
-    p_suf = SUFFIXES.get(suffix_key, 0) / total_suf if total_suf else 0
-
-    # Overall probability is the product of the individual chances
-    return p_adj * p_mat * p_noun * p_suf
-
-
 # Item generation function
 def generate_item(owner):
     def weighted_choice(items, special_case=False):
@@ -176,11 +152,15 @@ def generate_item(owner):
             for choice in choices:
                 weights.append(1 / items[choice]["rarity"])
         return random.choices(choices, weights=weights, k=1)[0]
+      
+    rarity = random.uniform(0.1, 100)
 
     noun = weighted_choice(NOUNS, special_case=True)
     return {
         "id": str(uuid4()),
         "item_secret": str(uuid4()),
+        "rarity": rarity,
+        "level": get_level(rarity),
         "name": {
             "adjective": weighted_choice(ADJECTIVES),
             "material": weighted_choice(MATERIALS),
@@ -196,43 +176,20 @@ def generate_item(owner):
     }
 
 
-def calculate_rarity(item):
-    name = item.get("name", {})
-    adjective_key = name.get("adjective")
-    material_key = name.get("material")
-    noun_key = name.get("noun")
-    suffix_key = name.get("suffix")
-
-    # Calculate the chance for each component based on its relative weight
-    total_adj = sum(ADJECTIVES.values())
-    total_mat = sum(MATERIALS.values())
-    total_noun = sum(entry.get("rarity", 0) for entry in NOUNS.values())
-    total_suf = sum(SUFFIXES.values())
-
-    # Retrieve individual weights; default to 0 if not found
-    p_adj = ADJECTIVES.get(adjective_key, 0) / total_adj if total_adj else 0
-    p_mat = MATERIALS.get(material_key, 0) / total_mat if total_mat else 0
-    p_noun = NOUNS.get(noun_key, {}).get("rarity", 0) / total_noun if total_noun else 0
-    p_suf = SUFFIXES.get(suffix_key, 0) / total_suf if total_suf else 0
-
-    # Overall probability is the product of the individual chances
-    return p_adj * p_mat * p_noun * p_suf
-
-
 def get_level(rarity):
-    if rarity <= 0.001:
+    if rarity <= 0.1:
         return "Godlike"
-    elif rarity <= 0.01:
+    elif rarity <= 1:
         return "Legendary"
-    elif rarity <= 0.05:
+    elif rarity <= 5:
         return "Epic"
-    elif rarity <= 0.1:
+    elif rarity <= 10:
         return "Rare"
-    elif rarity <= 0.25:
+    elif rarity <= 25:
         return "Uncommon"
-    elif rarity <= 0.5:
+    elif rarity <= 50:
         return "Common"
-    elif rarity <= 0.75:
+    elif rarity <= 75:
         return "Scrap"
     else:
         return "Trash"
@@ -368,12 +325,14 @@ def get_account():
 
     for item_id in user["items"]:
         item = items_collection.find_one({"id": item_id})
-        items_collection.update_one(
-            {"id": item_id}, {"$set": {"rarity": calculate_rarity(item)}}
-        )
-        items_collection.update_one(
-            {"id": item_id}, {"$set": {"level": get_level(calculate_rarity(item))}}
-        )
+        if "rarity" not in item or "level" not in item:
+            items_collection.update_one(
+                {"id": item_id}, {"$set": {"rarity": random.uniform(0.1, 100)}}
+            )
+            item = items_collection.find_one({"id": item_id})
+            items_collection.update_one(
+                {"id": item_id}, {"$set": {"level": get_level(item["rarity"])}}
+            )
 
     # Exclude _id from the items query
     items = items_collection.find({"id": {"$in": user["items"]}}, {"_id": 0})
@@ -713,6 +672,7 @@ def edit_item():
     item_id = data.get("item_id")
     new_name = data.get("new_name")
     new_icon = data.get("new_icon")
+    new_rarity = data.get("new_rarity")
 
     item = items_collection.find_one({"id": item_id})
     if not item:
@@ -729,6 +689,9 @@ def edit_item():
         updates["name.number"] = html.escape(parts["number"].strip())
     if new_icon:
         updates["name.icon"] = html.escape(new_icon.strip())
+    if new_rarity:
+        updates["rarity"] = float(new_rarity)
+        updates["level"] = get_level(new_rarity)
 
     if updates:
         items_collection.update_one({"id": item_id}, {"$set": updates})
