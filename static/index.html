@@ -26,7 +26,7 @@
 
     <link rel="stylesheet" href="styles.css" />
 
-    <title>Economix v1.8</title>
+    <title>Economix v1.9</title>
   </head>
 
   <body>
@@ -36,7 +36,7 @@
         <div class="card-container">
           <div class="card">
             <div class="auth-form">
-              <h2>Welcome to 💸 Economix v1.8</h2>
+              <h2>Welcome to 💸 Economix v1.9</h2>
               <input type="text" id="loginUsername" placeholder="Username" />
               <input type="password" id="loginPassword" placeholder="Password" />
               <button class="btn btn-primary" onclick="handleLogin()">Login</button>
@@ -69,12 +69,13 @@
       <!-- Main Content -->
       <div id="mainContent" style="display: none;">
         <div class="navbar">
-          <h1>💸 Economix v1.8</h1>
+          <h1>💸 Economix v1.9</h1>
           <div class="user-info">
             <div class="card" style="padding: 1rem;">
               <p>Welcome, <strong id="usernameDisplay"></strong>!</p>
               <p id="roleDisplay"></p>
               <p>Tokens: <strong id="tokens">0</strong></p>
+              <p>Level: <strong id="level">1</strong> (<strong id="exp">0</strong> EXP)</p>
             </div>
           </div>
         </div>
@@ -120,6 +121,10 @@
                 <button class="btn btn-primary" id="listUsersAdmin">👥 List Users</button>
                 <button class="btn btn-primary" id="editTokensAdmin">💸 Edit Tokens</button>
                 <button class="btn btn-primary" id="editTokensForUserAdmin">💸 Edit Tokens For User</button>
+                <button class="btn btn-primary" id="editLevelAdmin">📈 Edit Level</button>
+                <button class="btn btn-primary" id="editLevelForUserAdmin">📈 Edit Level For User</button>
+                <button class="btn btn-primary" id="editExpAdmin">✨ Edit EXP</button>
+                <button class="btn btn-primary" id="editExpForUserAdmin">✨ Edit EXP For User</button>
                 <button class="btn btn-primary" id="addAdminAdmin">🤝 Add Admin</button>
                 <button class="btn btn-primary" id="addModAdmin">🤝 Add Mod</button>
                 <button class="btn btn-primary" id="removeModAdmin">🚫 Remove Mod</button>

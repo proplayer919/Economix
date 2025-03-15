@@ -202,6 +202,8 @@ function refreshAccount() {
       }
 
       document.getElementById('tokens').textContent = data.tokens;
+      document.getElementById('level').textContent = data.level;
+      document.getElementById('exp').textContent = data.exp;
       document.getElementById('usernameDisplay').textContent = data.username;
       if (data.type === 'admin') {
         document.getElementById('roleDisplay').innerHTML = `You are an <strong>Admin</strong>`;
@@ -950,6 +952,96 @@ function listUsers() {
     });
 }
 
+function editExp() {
+  customPrompt("Enter exp:").then(exp => {
+    if (!exp) return;
+    fetch('/api/edit_exp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ exp: parseFloat(exp) })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          customAlert('Exp edited!').then(() => {
+            refreshAccount();
+          });
+        } else {
+          customAlert('Error editing exp.');
+        }
+      });
+  });
+}
+
+function editExpForUser() {
+  customPrompt("Enter username:").then(username => {
+    if (!username) return;
+    customPrompt("Enter exp:").then(exp => {
+      if (!exp) return;
+      fetch('/api/edit_exp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ exp: parseFloat(exp), username: username })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            customAlert('Exp edited!').then(() => {
+              refreshAccount();
+            });
+          } else {
+            customAlert('Error editing exp.');
+          }
+        });
+    });
+  });
+}
+
+function editLevel() {
+  customPrompt("Enter level:").then(level => {
+    if (!level) return;
+    fetch('/api/edit_level', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ level: parseFloat(level) })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          customAlert('Level edited!').then(() => {
+            refreshAccount();
+          });
+        } else {
+          customAlert('Error editing level.');
+        }
+      });
+  });
+}
+
+function editLevelForUser() {
+  customPrompt("Enter username:").then(username => {
+    if (!username) return;
+    customPrompt("Enter level:").then(level => {
+      if (!level) return;
+      fetch('/api/edit_level', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ level: parseFloat(level), username: username })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            customAlert('Level edited!').then(() => {
+              refreshAccount();
+            });
+          } else {
+            customAlert('Error editing level.');
+          }
+        });
+    });
+  });
+}
+
 function deleteAccount() {
   customPrompt("Enter 'CONFIRM' to confirm you want to delete your account:").then(input => {
     if (input === 'CONFIRM') {
@@ -1008,6 +1100,10 @@ setInterval(() => {
 // Admin Dashboard event listeners (for the new admin tab)
 document.getElementById('listUsersAdmin').addEventListener('click', listUsers);
 document.getElementById('editTokensAdmin').addEventListener('click', editTokens);
+document.getElementById('editExpAdmin').addEventListener('click', editExp);
+document.getElementById('editLevelAdmin').addEventListener('click', editLevel);
+document.getElementById('editExpForUserAdmin').addEventListener('click', editExpForUser);
+document.getElementById('editLevelForUserAdmin').addEventListener('click', editLevelForUser);
 document.getElementById('addAdminAdmin').addEventListener('click', addAdmin);
 document.getElementById('addModAdmin').addEventListener('click', addMod);
 document.getElementById('removeModAdmin').addEventListener('click', removeMod);

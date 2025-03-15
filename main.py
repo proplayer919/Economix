@@ -169,6 +169,7 @@ def generate_item(owner):
             "number": random.randint(1, 9999),
             "icon": NOUNS[noun]["icon"],
         },
+        "history": [],
         "for_sale": False,
         "price": 0,
         "owner": owner,
@@ -205,7 +206,56 @@ def split_name(name):
         "suffix": " ".join(name.split(" ")[3:]).split("#")[0],
         "number": " ".join(name.split(" ")[3:]).split("#")[1],
     }
+    
+def exp_for_level(level):
+    return 100 * (2 ** (level - 1))
+  
+def add_exp(username, exp):
+    user = users_collection.find_one({"username": username})
+    if not user:
+        return
 
+    next_level = user["level"] + 1
+    
+    users_collection.update_one(
+        {"username": username},
+        {"$inc": {"exp": exp}}
+    )
+    
+    if user["exp"] >= exp_for_level(next_level):
+        users_collection.update_one(
+            {"username": username},
+            {"$set": {"level": next_level}}
+        )
+        
+def set_exp(username, exp):
+    user = users_collection.find_one({"username": username})
+    if not user:
+        return
+      
+    next_level = user["level"] + 1
+
+    users_collection.update_one(
+        {"username": username},
+        {"$set": {"exp": exp}}
+    )
+    
+    if user["exp"] >= exp_for_level(next_level):
+        users_collection.update_one(
+            {"username": username},
+            {"$set": {"level": next_level}}
+        )
+        
+def set_level(username, level):
+  user = users_collection.find_one({"username": username})
+  if not user:
+    return
+  
+  level_exp = exp_for_level(level)
+  users_collection.update_one(
+      {"username": username},
+      {"$set": {"level": level, "exp": level_exp}}
+  )
 
 # Routes
 @app.route("/")
@@ -258,6 +308,9 @@ def register():
                 "frozen": False,
                 "muted": False,
                 "muted_until": None,
+                "history": [],
+                "exp": 0,
+                "level": 1,
             }
         )
         return jsonify({"success": True}), 201
@@ -294,6 +347,17 @@ def get_account():
         users_collection.update_one(
             {"username": request.username},
             {"$set": {"banned_until": None, "banned_reason": None, "banned": False}},
+        )
+        
+    if "history" not in user:
+        users_collection.update_one(
+            {"username": request.username}, {"$set": {"history": []}}
+        )
+        
+    if "exp" not in user or "level" not in user:
+        users_collection.update_one(
+            {"username": request.username},
+            {"$set": {"exp": 0, "level": 1}},
         )
 
     if "frozen" not in user:
@@ -332,6 +396,10 @@ def get_account():
             item = items_collection.find_one({"id": item_id})
             items_collection.update_one(
                 {"id": item_id}, {"$set": {"level": get_level(item["rarity"])}}
+            )
+        if "history" not in item:
+            items_collection.update_one(
+                {"id": item_id}, {"$set": {"history": []}}
             )
 
     # Exclude _id from the items query
@@ -399,6 +467,14 @@ def create_item():
             "$inc": {"tokens": -10},
         },
     )
+    
+    users_collection.update_one(
+        {"username": username},
+        {"$push": {"history": {"item_id": new_item["id"], "action": "create", "timestamp": now}}},
+    )
+    
+    add_exp(username, 10)
+    
     return jsonify(
         {k: v for k, v in new_item.items() if k != "_id" and k != "item_secret"}
     )
@@ -423,6 +499,14 @@ def mine_tokens():
         {"username": username},
         {"$inc": {"tokens": mined_tokens}, "$set": {"last_mine_time": now}},
     )
+    
+    users_collection.update_one(
+        {"username": username},
+        {"$push": {"history": {"item_id": None, "action": "mine", "timestamp": now}}},
+    )
+    
+    add_exp(username, 5)
+    
     return jsonify({"success": True, "tokens": user["tokens"] + mined_tokens})
 
 
@@ -466,6 +550,12 @@ def sell_item():
         "price": price if not item["for_sale"] else 0,
     }
     items_collection.update_one({"id": item_id}, {"$set": update_data})
+    
+    users_collection.update_one(
+        {"username": username},
+        {"$push": {"history": {"item_id": item_id, "action": "sell", "timestamp": time.time()}}},
+    )
+    
     return jsonify({"success": True})
 
 
@@ -479,6 +569,8 @@ def buy_item():
     item = items_collection.find_one({"id": item_id, "for_sale": True}, {"_id": 0})
     if not item:
         return jsonify({"error": "Item not available"}), 404
+      
+    seller_username = item["owner"]
 
     if buyer_username == item["owner"]:
         return jsonify({"error": "Cannot buy your own item"}), 400
@@ -520,6 +612,17 @@ def buy_item():
             session.abort_transaction()
             return jsonify({"error": str(e)}), 500
 
+    users_collection.update_one(
+        {"username": buyer_username},
+        {"$push": {"history": {"item_id": item_id, "action": "buy", "timestamp": time.time()}}},
+    )
+    users_collection.update_one(
+        {"username": seller_username},
+        {"$push": {"history": {"item_id": item_id, "action": "sell_complete", "timestamp": time.time()}}},
+    )
+    
+    add_exp(buyer_username, 5)
+    add_exp(seller_username, 5)
     return jsonify({"success": True})
 
 
@@ -527,6 +630,7 @@ def buy_item():
 @requires_unbanned
 def leaderboard():
     pipeline = [
+        {"$match": {"banned": {"$ne": True}}},
         {"$sort": {"tokens": DESCENDING}},
         {"$limit": 10},
         {
@@ -588,6 +692,15 @@ def take_item():
         except Exception as e:
             session.abort_transaction()
             return jsonify({"error": str(e)}), 500
+
+    users_collection.update_one(
+        {"username": username},
+        {"$push": {"history": {"item_id": item["id"], "action": "take", "timestamp": time.time()}}},
+    )
+    users_collection.update_one(
+        {"username": previous_owner},
+        {"$push": {"history": {"item_id": item["id"], "action": "taken_from", "timestamp": time.time()}}},
+    )
     return jsonify({"success": True})
 
 
@@ -620,6 +733,50 @@ def edit_tokens():
     users_collection.update_one(
         {"username": target_username}, {"$set": {"tokens": tokens}}
     )
+    return jsonify({"success": True})
+  
+@app.route("/api/edit_exp", methods=["POST"])
+@requires_admin
+def edit_exp():
+    data = request.get_json()
+    exp = data.get("exp")
+    target_username = data.get("username", request.username)
+
+    try:
+        exp = float(exp)
+    except ValueError:
+        return jsonify({"error": "Invalid exp value"}), 400
+      
+    if exp < 0:
+        return jsonify({"error": "Exp cannot be negative"}), 400
+
+    target_user = users_collection.find_one({"username": target_username})
+    if not target_user:
+        return jsonify({"error": "User not found"}), 404
+
+    set_exp(target_username, exp)
+    return jsonify({"success": True})
+  
+@app.route("/api/edit_level", methods=["POST"])
+@requires_admin
+def edit_level():
+    data = request.get_json()
+    level = data.get("level")
+    target_username = data.get("username", request.username)
+
+    try:
+        level = int(level)
+    except ValueError:
+        return jsonify({"error": "Invalid level value"}), 400
+      
+    if level < 0:
+        return jsonify({"error": "Level cannot be negative"}), 400
+
+    target_user = users_collection.find_one({"username": target_username})
+    if not target_user:
+        return jsonify({"error": "User not found"}), 404
+
+    set_level(target_username, level)
     return jsonify({"success": True})
 
 
