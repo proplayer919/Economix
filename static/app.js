@@ -1,6 +1,3 @@
-let items = [];
-let account = {};
-let token = null;
 // Pagination variables
 let inventoryPage = 1;
 let marketPage = 1;
@@ -9,7 +6,59 @@ const itemsPerPage = 5;
 const ITEM_CREATE_COOLDOWN = 60;
 const TOKEN_MINE_COOLDOWN = 600;
 
+let items = [];
+let account = {};
+let token = localStorage.getItem('token');
+let socket = null;
 let activeChatTab = 'global';
+
+
+// Initialize WebSocket Connection
+function initializeWebSocket() {
+  if (!token || socket) return;
+
+  socket = io(window.location.origin, {
+    query: { token },
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionAttempts: Infinity
+  });
+
+  // Real-time Updates
+  socket.on('account_update', (data) => {
+    account = data;
+    document.getElementById('tokens').textContent = data.tokens;
+    if (data.banned) handleBanState(data);
+    if (data.frozen) handleFreezeState();
+  });
+
+  socket.on('inventory_update', (newItems) => {
+    items = newItems;
+    renderInventory(items);
+  });
+
+  socket.on('market_update', (marketItems) => {
+    renderMarketplace(marketItems);
+  });
+
+  socket.on('new_message', (message) => {
+    const messagesContainer = document.getElementById('globalMessages');
+    const wasAtBottom = isUserAtBottom(messagesContainer);
+
+    const messageElement = document.createElement('div');
+    messageElement.classList.add('message');
+    messageElement.innerHTML = `<b>${message.username}</b>: ${message.message}`;
+
+    messagesContainer.appendChild(messageElement);
+    if (wasAtBottom) scrollToBottom(messagesContainer);
+  });
+
+  socket.on('connect', () => {
+    socket.emit('join_room', { room: 'global' });
+    refreshLeaderboard();
+    getStats();
+  });
+}
 
 // Custom modal functions
 function customAlert(message) {
@@ -140,9 +189,8 @@ function handleLogin() {
         localStorage.setItem('token', data.token);
         token = data.token;
         showMainContent();
+        initializeWebSocket();
         refreshAccount();
-      } else {
-        customAlert('Login failed: ' + (data.error || 'Unknown error'));
       }
     });
 }
@@ -245,6 +293,10 @@ function refreshAccount() {
       const mineCooldownEl = document.getElementById('mineCooldown');
       mineCooldownEl.innerHTML = mineRemaining > 0 ?
         `Mining cooldown: ${Math.ceil(mineRemaining / 60)}m remaining.${account.type === 'admin' ? ' <a href="#" onclick="resetCooldown()">Skip cooldown? (Admin)</a>' : ''}` : '';
+      
+      if (socket && socket.connected) {
+        socket.emit('force_refresh', { username: data.username });
+      }
     });
 }
 
@@ -686,20 +738,13 @@ function deleteItem(item_id) {
 function sendGlobalMessage() {
   const message = document.getElementById('messageInput').value;
   if (!message) return;
-  fetch('/api/send_message', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-    body: JSON.stringify({ room: 'global', message: message })
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        refreshMessages();
-      } else {
-        customAlert('Error sending message.');
-      }
+  if (socket && socket.connected) {
+    socket.emit('send_message', {
+      room: 'global',
+      message: message
     });
-  scrollToBottom(document.getElementById('globalMessages'));
+    document.getElementById('messageInput').value = '';
+  }
 }
 
 function sanitizeHTML(html) {
@@ -924,6 +969,11 @@ document.getElementById('sendMessage').addEventListener('click', sendGlobalMessa
 document.getElementById('deleteAccount').addEventListener('click', deleteAccount);
 document.getElementById('logout').addEventListener('click', () => {
   localStorage.removeItem('token');
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
+  location.reload();
 });
 
 // Admin Dashboard event listeners (for the new admin tab)
@@ -938,31 +988,11 @@ document.getElementById('unbanUserAdmin').addEventListener('click', unbanUser);
 document.getElementById('freezeUserAdmin').addEventListener('click', freezeUser);
 document.getElementById('unfreezeUserAdmin').addEventListener('click', unfreezeUser);
 
-// Interval to refresh account and market data
-setInterval(() => {
-  if (account.username) {
-    refreshAccount();
-
-    if (document.querySelector('.tab.active').getAttribute('data-tab') === 'market') {
-      refreshMarket();
-    }
-
-    if (document.querySelector('.tab.active').getAttribute('data-tab') === 'chat') {
-      refreshGlobalMessages();
-    }
-
-    if (document.querySelector('.tab.active').getAttribute('data-tab') === 'leaderboard') {
-      refreshLeaderboard();
-    }
-  }
-}, 1000);
-
 // Initial data refresh
 getStats();
 
-// Check if the user is logged in (local storage)
-if (localStorage.getItem('token')) {
-  token = localStorage.getItem('token');
+if (token) {
   showMainContent();
+  initializeWebSocket();
   refreshAccount();
 }

@@ -8,17 +8,23 @@ from logging.handlers import RotatingFileHandler
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
-from waitress import serve
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from functools import wraps
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.errors import DuplicateKeyError
 import re
 import html
+from bson import json_util
 
 # Initialize Flask application
 app = Flask(__name__)
 app.config.update(
     SECRET_KEY=os.environ.get("FLASK_SECRET_KEY", "1234"),
+)
+
+# Initialize SocketIO
+socketio = SocketIO(
+    app, cors_allowed_origins=os.environ.get("CORS_ORIGINS", "").split(",")
 )
 
 # Security middleware
@@ -72,6 +78,93 @@ try:
 except Exception as e:
     app.logger.critical(f"Failed to load word lists: {str(e)}")
     raise
+
+
+# WebSocket Authentication
+@socketio.on("connect")
+def handle_connect():
+    token = request.args.get("token")
+    if not token:
+        app.logger.warning("WebSocket connection attempt without token")
+        return False
+    user = users_collection.find_one({"token": token})
+    if not user:
+        app.logger.warning("Invalid WebSocket token")
+        return False
+    request.username = user["username"]
+    app.logger.info(f"User {request.username} connected via WebSocket")
+    join_room(request.username)  # Join user-specific room
+
+
+@socketio.on("disconnect")
+def handle_disconnect():
+    app.logger.info(f"User {request.username} disconnected")
+
+
+# WebSocket Notification Functions
+def notify_user_update(username):
+    user = users_collection.find_one({"username": username})
+    if user:
+        user_data = json.loads(
+            json_util.dumps(
+                {
+                    "username": user["username"],
+                    "tokens": user["tokens"],
+                    "items": user["items"],
+                    "banned_until": user.get("banned_until"),
+                    "frozen": user.get("frozen", False),
+                }
+            )
+        )
+        emit("account_update", user_data, room=username)
+
+
+def notify_market_update():
+    market_items = list(
+        items_collection.find({"for_sale": True}, {"_id": 0, "item_secret": 0})
+    )
+    emit("market_update", json.loads(json_util.dumps(market_items)), broadcast=True)
+
+
+def notify_inventory_update(username):
+    user = users_collection.find_one({"username": username})
+    if user:
+        items = list(items_collection.find({"id": {"$in": user["items"]}}, {"_id": 0}))
+        emit("inventory_update", json.loads(json_util.dumps(items)), room=username)
+
+
+# WebSocket Chat Handlers
+@socketio.on("send_message")
+def handle_send_message(data):
+    room = data.get("room", "global")
+    message = html.escape(data.get("message", "").strip())
+
+    if len(message) == 0 or len(message) > 500:
+        return
+
+    message_data = {
+        "room": room,
+        "username": request.username,
+        "message": message,
+        "timestamp": time.time(),
+    }
+
+    messages_collection.insert_one(message_data)
+    emit("new_message", json.loads(json_util.dumps(message_data)), room=room)
+
+
+@socketio.on("join_room")
+def handle_join_room(data):
+    room = data.get("room", "global")
+    join_room(room)
+    emit("room_joined", {"room": room})
+
+
+@socketio.on("leave_room")
+def handle_leave_room(data):
+    room = data.get("room", "global")
+    leave_room(room)
+    emit("room_left", {"room": room})
 
 
 # Authentication middleware
@@ -145,20 +238,26 @@ def requires_unbanned(f):
 
 # Calculate rarity
 def calculate_rarity(item):
-    rarity = 0
-    rarity += ADJECTIVES[item["name"]["adjective"]]
-    rarity += MATERIALS[item["name"]["material"]]
-    rarity += NOUNS[item["name"]["noun"]]["rarity"]
-    rarity += SUFFIXES[item["name"]["suffix"]]
-    return (
-        rarity
-        / (
-            sum(ADJECTIVES.values())
-            + sum(MATERIALS.values())
-            + sum(item["rarity"] for item in NOUNS.values())
-            + sum(SUFFIXES.values())
-        )
-    ) * 100
+    name = item.get("name", {})
+    adjective_key = name.get("adjective")
+    material_key = name.get("material")
+    noun_key = name.get("noun")
+    suffix_key = name.get("suffix")
+
+    # Calculate the chance for each component based on its relative weight
+    total_adj = sum(ADJECTIVES.values())
+    total_mat = sum(MATERIALS.values())
+    total_noun = sum(entry.get("rarity", 0) for entry in NOUNS.values())
+    total_suf = sum(SUFFIXES.values())
+
+    # Retrieve individual weights; default to 0 if not found
+    p_adj = ADJECTIVES.get(adjective_key, 0) / total_adj if total_adj else 0
+    p_mat = MATERIALS.get(material_key, 0) / total_mat if total_mat else 0
+    p_noun = NOUNS.get(noun_key, {}).get("rarity", 0) / total_noun if total_noun else 0
+    p_suf = SUFFIXES.get(suffix_key, 0) / total_suf if total_suf else 0
+
+    # Overall probability is the product of the individual chances
+    return p_adj * p_mat * p_noun * p_suf
 
 
 # Item generation function
@@ -169,7 +268,7 @@ def generate_item(owner):
             choices = list(items.keys())
             weights = []
             for choice in choices:
-                weights.append(items[choice]["rarity"])
+                weights.append(1 / items[choice]["rarity"])
         return random.choices(choices, weights=weights, k=1)[0]
 
     noun = weighted_choice(NOUNS, special_case=True)
@@ -322,7 +421,11 @@ def get_account():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    if "banned_until" not in user or "banned_reason" not in user or "banned" not in user:
+    if (
+        "banned_until" not in user
+        or "banned_reason" not in user
+        or "banned" not in user
+    ):
         users_collection.update_one(
             {"username": request.username},
             {"$set": {"banned_until": None, "banned_reason": None, "banned": False}},
@@ -343,14 +446,12 @@ def get_account():
 
     for item_id in user["items"]:
         item = items_collection.find_one({"id": item_id})
-        if "rarity" not in item:
-            items_collection.update_one(
-                {"id": item_id}, {"$set": {"rarity": calculate_rarity(item)}}
-            )
-        if "level" not in item:
-            items_collection.update_one(
-                {"id": item_id}, {"$set": {"level": get_level(calculate_rarity(item))}}
-            )
+        items_collection.update_one(
+            {"id": item_id}, {"$set": {"rarity": calculate_rarity(item)}}
+        )
+        items_collection.update_one(
+            {"id": item_id}, {"$set": {"level": get_level(calculate_rarity(item))}}
+        )
 
     # Exclude _id from the items query
     items = items_collection.find({"id": {"$in": user["items"]}}, {"_id": 0})
@@ -417,6 +518,8 @@ def create_item():
             "$inc": {"tokens": -10},
         },
     )
+    socketio.start_background_task(notify_inventory_update, username)
+    socketio.start_background_task(notify_user_update, username)
     return jsonify(
         {k: v for k, v in new_item.items() if k != "_id" and k != "item_secret"}
     )
@@ -484,6 +587,8 @@ def sell_item():
         "price": price if not item["for_sale"] else 0,
     }
     items_collection.update_one({"id": item_id}, {"$set": update_data})
+    socketio.start_background_task(notify_inventory_update, username)
+    socketio.start_background_task(notify_market_update)
     return jsonify({"success": True})
 
 
@@ -538,6 +643,11 @@ def buy_item():
             session.abort_transaction()
             return jsonify({"error": str(e)}), 500
 
+    socketio.start_background_task(notify_inventory_update, buyer_username)
+    socketio.start_background_task(notify_inventory_update, item["owner"])
+    socketio.start_background_task(notify_user_update, buyer_username)
+    socketio.start_background_task(notify_user_update, item["owner"])
+    socketio.start_background_task(notify_market_update)
     return jsonify({"success": True})
 
 
@@ -785,7 +895,8 @@ def unban_user():
         return jsonify({"error": "User not found"}), 404
 
     users_collection.update_one(
-        {"username": username}, {"$set": {"banned_until": None, "banned_reason": None, "banned": False}}
+        {"username": username},
+        {"$set": {"banned_until": None, "banned_reason": None, "banned": False}},
     )
     return jsonify({"success": True})
 
@@ -907,5 +1018,5 @@ def get_stats():
 
 
 if __name__ == "__main__":
-    app.logger.info("Starting application with Waitress")
-    serve(app, host="0.0.0.0", port=5000, threads=4)
+    app.logger.info("Starting application with SocketIO")
+    socketio.run(app, host="0.0.0.0", port=5000)
