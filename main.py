@@ -208,7 +208,7 @@ def split_name(name):
     }
     
 def exp_for_level(level):
-    return 100 * (2 ** (level - 1))
+    return int(25 * (1.2 ** (level - 1)))
   
 def add_exp(username, exp):
     user = users_collection.find_one({"username": username})
