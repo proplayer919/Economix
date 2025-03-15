@@ -274,7 +274,7 @@ function renderInventory(inventoryItems) {
 
   pagedItems.forEach(item => {
     const li = document.createElement('li');
-    li.textContent = `${item.name.icon} ${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number} ${item.for_sale ? `(For Sale for ${item.price} tokens)` : ""} - Rarity: ${item.level} ${item.rarity}`;
+    li.textContent = `${item.name.icon} ${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number} ${item.for_sale ? `(For Sale for ${item.price} tokens)` : ""}`;
 
     const sellBtn = document.createElement('button');
     sellBtn.classList.add('btn', 'btn-secondary');
