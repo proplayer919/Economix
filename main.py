@@ -72,6 +72,7 @@ except Exception as e:
     app.logger.critical(f"Failed to load word lists: {str(e)}")
     raise
 
+
 # Authentication middleware
 @app.before_request
 def authenticate_user():
@@ -342,7 +343,7 @@ def get_account():
         users_collection.update_one(
             {"username": request.username}, {"$set": {"frozen": False}}
         )
-        
+
     if "muted" not in user or "muted_until" not in user:
         users_collection.update_one(
             {"username": request.username},
@@ -356,7 +357,7 @@ def get_account():
             {"username": request.username},
             {"$set": {"banned_until": None, "banned_reason": None}},
         )
-        
+
     if user.get("muted_until", None) and (
         user["muted_until"] < time.time() and user["muted_until"] != 0
     ):
@@ -839,7 +840,8 @@ def unfreeze_user():
 
     users_collection.update_one({"username": username}, {"$set": {"frozen": False}})
     return jsonify({"success": True})
-  
+
+
 @app.route("/api/mute_user", methods=["POST"])
 @requires_admin
 def mute_user():
@@ -892,9 +894,25 @@ def unmute_user():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    users_collection.update_one({"username": username}, {"$set": {"muted": False, "muted_until": None}})
+    users_collection.update_one(
+        {"username": username}, {"$set": {"muted": False, "muted_until": None}}
+    )
     return jsonify({"success": True})
 
+
+@app.route("/api/fine_user", methods=["POST"])
+@requires_admin
+def fine_user():
+    data = request.get_json()
+    username = data.get("username")
+    amount = data.get("amount")
+
+    user = users_collection.find_one({"username": username})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    users_collection.update_one({"username": username}, {"$inc": {"tokens": -amount}})
+    return jsonify({"success": True})
 
 
 @app.route("/api/users", methods=["GET"])
@@ -912,7 +930,7 @@ def send_message():
     room = data.get("room", "").strip()
     message = data.get("message", "")
     username = request.username
-    
+
     user = users_collection.find_one({"username": username})
     if user["muted"]:
         return jsonify({"error": "You are muted"}), 400

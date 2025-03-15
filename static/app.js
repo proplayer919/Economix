@@ -911,6 +911,30 @@ function unmuteUser() {
   });
 }
 
+function fineUser() {
+  customPrompt("Enter username to fine:").then(username => {
+    if (!username) return;
+    customPrompt("Enter amount of fine:").then(amount => {
+      if (!amount) return;
+      fetch('/api/fine_user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ username: username, amount: parseFloat(amount) })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            customAlert('User fined!').then(() => {
+              refreshAccount();
+            });
+          } else {
+            customAlert('Error fining user.');
+          }
+        });    
+    });
+  });
+}
+
 function listUsers() {
   fetch('/api/users', {
     method: 'GET',
@@ -983,6 +1007,7 @@ document.getElementById('freezeUserAdmin').addEventListener('click', freezeUser)
 document.getElementById('unfreezeUserAdmin').addEventListener('click', unfreezeUser);
 document.getElementById('muteUserAdmin').addEventListener('click', muteUser);
 document.getElementById('unmuteUserAdmin').addEventListener('click', unmuteUser);
+document.getElementById('fineUserAdmin').addEventListener('click', fineUser);
 
 // Initial data refresh
 getStats();
