@@ -401,6 +401,9 @@ def get_account():
             items_collection.update_one(
                 {"id": item_id}, {"$set": {"history": []}}
             )
+        items_collection.update_one(
+            {"id": item_id}, {"$set": {"rarity": round(item["rarity"], 1)}}
+        )
 
     # Exclude _id from the items query
     items = items_collection.find({"id": {"$in": user["items"]}}, {"_id": 0})
