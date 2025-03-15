@@ -275,7 +275,7 @@ def get_account():
     if "frozen" not in user:
         users_collection.update_one({"username": request.username}, {"$set": {"frozen": False}})
       
-    if user.get("banned_until", None) and user["banned_until"] < time.time():
+    if user.get("banned_until", None) and user["banned_until"] < time.time() and user["banned_until"] != 0:
         users_collection.update_one({"username": request.username}, {"$set": {"banned_until": None, "banned_reason": None}})
 
     # Exclude _id from the items query
@@ -685,7 +685,7 @@ def ban_user():
         elif length[-1].lower() == "y":
             end_time = now + 60 * 60 * 24 * 365 * int(length[:-1])
 
-    users_collection.update_one({"username": username}, {"$set": {"banned_until": end_time, "ban_reason": reason}})
+    users_collection.update_one({"username": username}, {"$set": {"banned_until": end_time, "banned_reason": reason}})
     return jsonify({"success": True})
 
 @app.route("/api/unban_user", methods=["POST"])
@@ -698,7 +698,7 @@ def unban_user():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    users_collection.update_one({"username": username}, {"$set": {"banned_until": None, "ban_reason": None}})
+    users_collection.update_one({"username": username}, {"$set": {"banned_until": None, "banned_reason": None}})
     return jsonify({"success": True})
 
 @app.route("/api/freeze_user", methods=["POST"])
