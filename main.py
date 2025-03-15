@@ -356,6 +356,14 @@ def get_account():
             {"username": request.username},
             {"$set": {"banned_until": None, "banned_reason": None}},
         )
+        
+    if user.get("muted_until", None) and (
+        user["muted_until"] < time.time() and user["muted_until"] != 0
+    ):
+        users_collection.update_one(
+            {"username": request.username},
+            {"$set": {"muted": False, "muted_until": None}},
+        )
 
     for item_id in user["items"]:
         item = items_collection.find_one({"id": item_id})
@@ -904,6 +912,10 @@ def send_message():
     room = data.get("room", "").strip()
     message = data.get("message", "")
     username = request.username
+    
+    user = users_collection.find_one({"username": username})
+    if user["muted"]:
+        return jsonify({"error": "You are muted"}), 400
 
     if not room or not message:
         return jsonify({"error": "Missing room or message"}), 400
