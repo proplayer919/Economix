@@ -749,18 +749,23 @@ def ban_user():
         end_time = 0
     else:
         # Parse duration
-        if length[-1].lower() == "s":
-            end_time = now + int(length[:-1])
-        elif length[-1].lower() == "m":
-            end_time = now + 60 * int(length[:-1])
-        elif length[-1].lower() == "h":
-            end_time = now + 60 * 60 * int(length[:-1])
-        elif length[-1].lower() == "d":
-            end_time = now + 60 * 60 * 24 * int(length[:-1])
-        elif length[-1].lower() == "w":
-            end_time = now + 60 * 60 * 24 * 7 * int(length[:-1])
-        elif length[-1].lower() == "y":
-            end_time = now + 60 * 60 * 24 * 365 * int(length[:-1])
+        parts = length.split("+")
+        duration = 0
+        for part in parts:
+            if part[-1].lower() == "s":
+                duration += int(part[:-1])
+            elif part[-1].lower() == "m":
+                duration += 60 * int(part[:-1])
+            elif part[-1].lower() == "h":
+                duration += 60 * 60 * int(part[:-1])
+            elif part[-1].lower() == "d":
+                duration += 60 * 60 * 24 * int(part[:-1])
+            elif part[-1].lower() == "w":
+                duration += 60 * 60 * 24 * 7 * int(part[:-1])
+            elif part[-1].lower() == "y":
+                duration += 60 * 60 * 24 * 365 * int(part[:-1])
+
+        end_time = now + duration
 
     users_collection.update_one(
         {"username": username},

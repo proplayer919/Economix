@@ -787,7 +787,7 @@ function banUser() {
     if (!username) return;
     customPrompt("Enter reason for banning:").then(reason => {
       if (!reason) return;
-      customPrompt("Enter length of ban (e.g. 1d, 1w, 1m, 1y, perma):").then(length => {
+      customPrompt("Enter length of ban (e.g. 1s, 1m, 1h, 1d, 1w, 1m, 1y, 1y+6m, perma):").then(length => {
         if (!length) return;
         fetch('/api/ban_user', {
           method: 'POST',
