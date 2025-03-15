@@ -866,6 +866,50 @@ function unfreezeUser() {
       });
   });
 }
+function muteUser() {
+  customPrompt("Enter username to mute:").then(username => {
+    if (!username) return;
+    customPrompt("Enter length of mute (e.g. 1s, 1m, 1h, 1d, 1w, 1m, 1y, 1y+6m, perma):").then(length => {
+      if (!length) return;
+      fetch('/api/mute_user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ username: username, length: length })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            customAlert('User muted!').then(() => {
+              refreshAccount();
+            });
+          } else {
+            customAlert('Error muting user.');
+          }
+        });
+    });
+  });
+}
+
+function unmuteUser() {
+  customPrompt("Enter username to unmute:").then(username => {
+    if (!username) return;
+    fetch('/api/unmute_user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ username: username })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          customAlert('User unmuted!').then(() => {
+            refreshAccount();
+          });
+        } else {
+          customAlert('Error unmuting user.');
+        }
+      });
+  });
+}
 
 function listUsers() {
   fetch('/api/users', {
@@ -937,6 +981,8 @@ document.getElementById('banUserAdmin').addEventListener('click', banUser);
 document.getElementById('unbanUserAdmin').addEventListener('click', unbanUser);
 document.getElementById('freezeUserAdmin').addEventListener('click', freezeUser);
 document.getElementById('unfreezeUserAdmin').addEventListener('click', unfreezeUser);
+document.getElementById('muteUserAdmin').addEventListener('click', muteUser);
+document.getElementById('unmuteUserAdmin').addEventListener('click', unmuteUser);
 
 // Initial data refresh
 getStats();

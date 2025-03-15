@@ -298,6 +298,8 @@ def register():
                 "banned_reason": None,
                 "banned": False,
                 "frozen": False,
+                "muted": False,
+                "muted_until": None,
             }
         )
         return jsonify({"success": True}), 201
@@ -339,6 +341,12 @@ def get_account():
     if "frozen" not in user:
         users_collection.update_one(
             {"username": request.username}, {"$set": {"frozen": False}}
+        )
+        
+    if "muted" not in user or "muted_until" not in user:
+        users_collection.update_one(
+            {"username": request.username},
+            {"$set": {"muted": False, "muted_until": None}},
         )
 
     if user.get("banned_until", None) and (
@@ -823,6 +831,62 @@ def unfreeze_user():
 
     users_collection.update_one({"username": username}, {"$set": {"frozen": False}})
     return jsonify({"success": True})
+  
+@app.route("/api/mute_user", methods=["POST"])
+@requires_admin
+def mute_user():
+    data = request.get_json()
+    username = data.get("username")
+    length = data.get("length", None)
+
+    user = users_collection.find_one({"username": username})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    now = time.time()
+    if not length or length.lower() == "perma":
+        # Mute forever
+        end_time = 0
+    else:
+        # Parse duration
+        parts = length.split("+")
+        duration = 0
+        for part in parts:
+            if part[-1].lower() == "s":
+                duration += int(part[:-1])
+            elif part[-1].lower() == "m":
+                duration += 60 * int(part[:-1])
+            elif part[-1].lower() == "h":
+                duration += 60 * 60 * int(part[:-1])
+            elif part[-1].lower() == "d":
+                duration += 60 * 60 * 24 * int(part[:-1])
+            elif part[-1].lower() == "w":
+                duration += 60 * 60 * 24 * 7 * int(part[:-1])
+            elif part[-1].lower() == "y":
+                duration += 60 * 60 * 24 * 365 * int(part[:-1])
+
+        end_time = now + duration
+
+    users_collection.update_one(
+        {"username": username},
+        {"$set": {"muted_until": end_time, "muted": True}},
+    )
+    return jsonify({"success": True})
+
+
+@app.route("/api/unmute_user", methods=["POST"])
+@requires_admin
+def unmute_user():
+    data = request.get_json()
+    username = data.get("username")
+
+    user = users_collection.find_one({"username": username})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    users_collection.update_one({"username": username}, {"$set": {"muted": False, "muted_until": None}})
+    return jsonify({"success": True})
+
 
 
 @app.route("/api/users", methods=["GET"])
