@@ -184,7 +184,7 @@ function refreshAccount() {
         return;
       }
 
-      if (data.banned_until) {
+      if (data.banned_until >= 0) {
         const bannedUntil = new Date(data.banned_until);
         document.getElementById('mainContent').style.display = 'none';
         document.getElementById('bannedPage').style.display = 'block';
