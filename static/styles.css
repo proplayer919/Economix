@@ -295,7 +295,7 @@ textarea:focus {
   margin-top: 1rem;
 }
 
-.actions {
+.actions>button {
   margin-bottom: 0.5rem;
 }
 
