@@ -75,6 +75,11 @@ body {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   border: 1px solid var(--border);
   position: relative;
+  gap: 1rem;
+}
+
+.card-center {
+  text-align: center;
 }
 
 .auth-form {

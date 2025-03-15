@@ -924,6 +924,7 @@ document.getElementById('sendMessage').addEventListener('click', sendGlobalMessa
 document.getElementById('deleteAccount').addEventListener('click', deleteAccount);
 document.getElementById('logout').addEventListener('click', () => {
   localStorage.removeItem('token');
+  location.reload();
 });
 
 // Admin Dashboard event listeners (for the new admin tab)
