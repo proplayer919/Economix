@@ -194,21 +194,23 @@
 
     <!-- Banned Page -->
     <div id="bannedPage" style="display: none;">
-      <div class="card card-center">
+      <div class="card">
         <div class="card-header">
-          <h2>🚫 Your account has been banned.</h2>
+          <h2>🚫 Your account has been banned</h2>
         </div>
-        <p>Reason: <span id="banReason"></span></p>
-        <p>Expires: <span id="banExpires"></span></p>
+        <p><b>Reason:</b> <span id="banReason"></span></p>
+        <p><b>Expires:</b> <span id="banExpires"></span></p>
+        <button class="btn btn-danger" id="logout">Logout</button>
       </div>
     </div>
 
     <!-- Frozen Page -->
     <div id="frozenPage" style="display: none;">
-      <div class="card card-center">
+      <div class="card">
         <div class="card-header">
-          <h2>❄️ Your account has been frozen for investigation.</h2>
+          <h2>❄️ Your account has been frozen for investigation</h2>
         </div>
+        <button class="btn btn-danger" id="logout">Logout</button>
       </div>
     </div>
 

@@ -188,7 +188,11 @@ function refreshAccount() {
         const bannedUntil = new Date(data.banned_until);
         document.getElementById('mainContent').style.display = 'none';
         document.getElementById('bannedPage').style.display = 'block';
-        document.getElementById('banExpires').textContent = bannedUntil.toLocaleString();
+        if (data.banned_until === 0) {
+          document.getElementById('banExpires').textContent = "Permanent";
+        } else {
+          document.getElementById('banExpires').textContent = bannedUntil.toLocaleString();
+        }
         document.getElementById('banReason').textContent = data.banned_reason;
         return;
       }
