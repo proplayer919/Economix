@@ -295,6 +295,10 @@ textarea:focus {
   margin-top: 1rem;
 }
 
+.actions {
+  margin-bottom: 0.5rem;
+}
+
 /* Links and Footer */
 a {
   text-decoration: underline;
