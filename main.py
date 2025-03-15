@@ -764,7 +764,7 @@ def ban_user():
 
     users_collection.update_one(
         {"username": username},
-        {"$set": {"banned_until": end_time, "banned_reason": reason}},
+        {"$set": {"banned_until": end_time, "banned_reason": reason, "banned": True}},
     )
     return jsonify({"success": True})
 
@@ -780,7 +780,7 @@ def unban_user():
         return jsonify({"error": "User not found"}), 404
 
     users_collection.update_one(
-        {"username": username}, {"$set": {"banned_until": None, "banned_reason": None}}
+        {"username": username}, {"$set": {"banned_until": None, "banned_reason": None, "banned": False}}
     )
     return jsonify({"success": True})
 
