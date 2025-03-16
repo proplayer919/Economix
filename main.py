@@ -484,6 +484,7 @@ def setup_2fa():
         users_collection.update_one(
             {"username": request.username}, {"$set": {"2fa_code": code}}
         )
+    user = users_collection.find_one({"username": request.username})
     totp = pyotp.TOTP(user["2fa_secret"])
     provisioning_uri = totp.provisioning_uri(
         name=request.username,
