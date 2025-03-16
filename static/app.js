@@ -1119,23 +1119,19 @@ function setup2FA() {
             const qrCodeImage = document.getElementById('2faQrCode');
             qrCodeImage.src = url;
             qrCodeImage.style.display = 'block';
+
+            // Hide main content
+            document.getElementById('mainContent').style.display = 'none';
+
+            // Show 2FA setup page
+            document.getElementById('2faSetupPage').style.display = 'block';
           });
       }
       else {
-        if (data.code == "2fa-already-enabled") {
-          customAlert("2FA is already enabled.");
-          return;
-        }
-        customAlert("Failed to setup 2FA.");
+        customAlert(`Error setting up 2FA: ${data.error}`);
         return;
       }
     });
-
-  // Hide main content
-  document.getElementById('mainContent').style.display = 'none';
-
-  // Show 2FA setup page
-  document.getElementById('2faSetupPage').style.display = 'block';
 }
 
 function enable2FA() {
@@ -1209,7 +1205,7 @@ document.getElementById('2faSetupCancel').addEventListener('click', () => {
 
 // Interval
 setInterval(() => {
-  if(!token) return;
+  if (!token) return;
   getStats();
   refreshAccount();
   refreshGlobalMessages();
