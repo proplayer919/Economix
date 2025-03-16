@@ -257,6 +257,16 @@ function refreshAccount() {
       items = data.items;
       account = data;
 
+      // Show/hide 2FA buttons
+      if (eval("data.2fa_enabled")) {
+        document.getElementById('enable2fa').style.display = 'none';
+        document.getElementById('disable2fa').style.display = 'inline-block';
+      }
+      else {
+        document.getElementById('enable2fa').style.display = 'inline-block';
+        document.getElementById('disable2fa').style.display = 'none';
+      }
+
       // Reset inventory page if items length changes significantly
       if ((inventoryPage - 1) * itemsPerPage >= items.length) {
         inventoryPage = 1;
