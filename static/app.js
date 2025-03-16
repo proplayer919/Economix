@@ -275,10 +275,6 @@ function refreshAccount() {
       const mineCooldownEl = document.getElementById('mineCooldown');
       mineCooldownEl.innerHTML = mineRemaining > 0 ?
         `Mining cooldown: ${Math.ceil(mineRemaining / 60)}m remaining.${account.type === 'admin' ? ' <a href="#" onclick="resetCooldown()">Skip cooldown? (Admin)</a>' : ''}` : '';
-
-      if (socket && socket.connected) {
-        socket.emit('force_refresh', { username: data.username });
-      }
     });
 }
 
@@ -722,13 +718,21 @@ function deleteItem(item_id) {
 function sendGlobalMessage() {
   const message = document.getElementById('messageInput').value;
   if (!message) return;
-  if (socket && socket.connected) {
-    socket.emit('send_message', {
-      room: 'global',
-      message: message
+
+  fetch('/api/send_message', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ room: 'global', message: message })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById('messageInput').value = '';
+        refreshGlobalMessages();
+      } else {
+        customAlert('Error sending message.');
+      }
     });
-    document.getElementById('messageInput').value = '';
-  }
 }
 
 function sanitizeHTML(html) {
@@ -1123,7 +1127,7 @@ function setup2FA() {
     });
 
   // Hide main content
-  document.getElementById('main-content').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'none';
 
   // Show 2FA setup page
   document.getElementById('2faSetupPage').style.display = 'block';
@@ -1167,10 +1171,6 @@ document.getElementById('sendMessage').addEventListener('click', sendGlobalMessa
 document.getElementById('deleteAccount').addEventListener('click', deleteAccount);
 document.getElementById('logout').addEventListener('click', () => {
   localStorage.removeItem('token');
-  if (socket) {
-    socket.disconnect();
-    socket = null;
-  }
   location.reload();
 });
 document.getElementById('setup2FA').addEventListener('click', setup2FA);
