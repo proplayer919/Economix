@@ -229,7 +229,7 @@ def update_item(item_id):
         return
 
     name = item["name"]
-    
+
     meta_id = None
 
     if "meta_id" not in item:
@@ -448,12 +448,14 @@ def login():
                 ),
                 401,
             )
-            
+
         if "ode" in data:
             code = data["code"]
             if not user["2fa_code"] == code:
                 return (
-                    jsonify({"error": "Invalid 2FA backup code", "code": "invalid-2fa-code"}),
+                    jsonify(
+                        {"error": "Invalid 2FA backup code", "code": "invalid-2fa-code"}
+                    ),
                     401,
                 )
         else:
@@ -462,7 +464,9 @@ def login():
             totp = pyotp.TOTP(user["2fa_secret"])
             if not totp.verify(token):
                 return (
-                    jsonify({"error": "Invalid 2FA token", "code": "invalid-2fa-token"}),
+                    jsonify(
+                        {"error": "Invalid 2FA token", "code": "invalid-2fa-token"}
+                    ),
                     401,
                 )
 
@@ -474,6 +478,11 @@ def login():
 @app.route("/api/setup_2fa", methods=["POST"])
 def setup_2fa():
     user = users_collection.find_one({"username": request.username})
+    if user.get("2fa_enabled", False):
+        return (
+            jsonify({"error": "2FA is already enabled", "code": "2fa-already-enabled"}),
+            400,
+        )
     if "2fa_secret" not in user:
         secret = pyotp.random_base32(32)
         users_collection.update_one(
@@ -492,7 +501,9 @@ def setup_2fa():
         image="https://economix.proplayer919.dev/brand/logo.png",
     )
     code = user["2fa_code"]
-    return jsonify({"success": True, "provisioning_uri": provisioning_uri, "backup_code": code})
+    return jsonify(
+        {"success": True, "provisioning_uri": provisioning_uri, "backup_code": code}
+    )
 
 
 @app.route("/api/2fa_qrcode", methods=["GET"])
@@ -537,11 +548,13 @@ def verify_2fa():
         {"username": request.username}, {"$set": {"2fa_enabled": True}}
     )
     return jsonify({"success": True})
-  
+
+
 @app.route("/api/disable_2fa", methods=["POST"])
 def disable_2fa():
     users_collection.update_one(
-        {"username": request.username}, {"$set": {"2fa_enabled": False, "2fa_secret": None, "2fa_code": None}}
+        {"username": request.username},
+        {"$set": {"2fa_enabled": False, "2fa_secret": None, "2fa_code": None}},
     )
     return jsonify({"success": True})
 
