@@ -1122,7 +1122,12 @@ function setup2FA() {
           });
       }
       else {
+        if (data.code == "2fa-already-enabled") {
+          customAlert("2FA is already enabled.");
+          return;
+        }
         customAlert("Failed to setup 2FA.");
+        return;
       }
     });
 
