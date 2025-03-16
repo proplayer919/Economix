@@ -437,7 +437,7 @@ def login():
             401,
         )
 
-    if user["2fa_enabled"]:
+    if user.get("2fa_enabled", False):
         if "token" not in data and "code" not in data:
             return (
                 jsonify(
