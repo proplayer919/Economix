@@ -1153,6 +1153,24 @@ function enable2FA() {
     });
 }
 
+function disable2FA() {
+  fetch('/api/disable_2fa', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        customAlert('2FA disabled!').then(() => {
+          location.reload();
+        });
+      }
+      else {
+        customAlert("Failed to disable 2FA.");
+      }
+    });
+}
+
 // Helper functions for auto-scrolling
 function isUserAtBottom(container) {
   // Allow a small threshold (e.g., 2 pixels) for precision issues.
@@ -1174,6 +1192,7 @@ document.getElementById('logout').addEventListener('click', () => {
   location.reload();
 });
 document.getElementById('setup2FA').addEventListener('click', setup2FA);
+document.getElementById('disable2FA').addEventListener('click', disable2FA);
 document.getElementById('2faSetupSubmit').addEventListener('click', enable2FA);
 document.getElementById('2faSetupCancel').addEventListener('click', () => {
   // Hide 2FA setup page

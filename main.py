@@ -537,6 +537,13 @@ def verify_2fa():
         {"username": request.username}, {"$set": {"2fa_enabled": True}}
     )
     return jsonify({"success": True})
+  
+@app.route("/api/disable_2fa", methods=["POST"])
+def disable_2fa():
+    users_collection.update_one(
+        {"username": request.username}, {"$set": {"2fa_enabled": False, "2fa_secret": None, "2fa_code": None}}
+    )
+    return jsonify({"success": True})
 
 
 @app.route("/api/account", methods=["GET"])
