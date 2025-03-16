@@ -5,14 +5,18 @@ import random
 import logging
 from uuid import uuid4
 from logging.handlers import RotatingFileHandler
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
+from hashlib import sha256
 from functools import wraps
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.errors import DuplicateKeyError
 import re
 import html
+import pyotp
+import qrcode
+import io
 
 # Initialize Flask application
 app = Flask(__name__)
@@ -44,12 +48,14 @@ users_collection = db.users
 items_collection = db.items
 messages_collection = db.messages
 rooms_collection = db.rooms
+item_meta_collection = db.item_meta
 
 # Create indexes
 users_collection.create_index([("username", ASCENDING)], unique=True)
 items_collection.create_index([("id", ASCENDING)], unique=True)
 messages_collection.create_index([("room", ASCENDING), ("timestamp", DESCENDING)])
 rooms_collection.create_index([("name", ASCENDING)], unique=True)
+item_meta_collection.create_index([("id", ASCENDING)])
 
 # Configuration constants
 ITEM_CREATE_COOLDOWN = int(os.environ.get("ITEM_CREATE_COOLDOWN", 60))
@@ -88,7 +94,15 @@ def authenticate_user():
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         app.logger.warning("Missing or invalid Authorization header")
-        return jsonify({"error": "Missing or invalid Authorization header"}), 401
+        return (
+            jsonify(
+                {
+                    "error": "Missing or invalid Authorization header",
+                    "code": "invalid-credentials",
+                }
+            ),
+            401,
+        )
 
     token = auth_header.split(" ")[1]
     user = users_collection.find_one({"token": token})
@@ -98,7 +112,7 @@ def authenticate_user():
         return
 
     app.logger.warning("Invalid token provided")
-    return jsonify({"error": "Invalid token"}), 401
+    return jsonify({"error": "Invalid token", "code": "invalid-credentials"}), 401
 
 
 # Admin requirement decorator
@@ -110,7 +124,12 @@ def requires_admin(f):
             app.logger.warning(
                 f"Admin privileges required for user: {request.username}"
             )
-            return jsonify({"error": "Admin privileges required"}), 403
+            return (
+                jsonify(
+                    {"error": "Admin privileges required", "code": "admin-required"}
+                ),
+                403,
+            )
         return f(*args, **kwargs)
 
     return decorated
@@ -123,7 +142,10 @@ def requires_mod(f):
         user = users_collection.find_one({"username": request.username})
         if user.get("type") not in ["admin", "mod"]:
             app.logger.warning(f"Mod privileges required for user: {request.username}")
-            return jsonify({"error": "Mod privileges required"}), 403
+            return (
+                jsonify({"error": "Mod privileges required", "code": "mod-required"}),
+                403,
+            )
         return f(*args, **kwargs)
 
     return decorated
@@ -136,7 +158,7 @@ def requires_unbanned(f):
         user = users_collection.find_one({"username": request.username})
         if user.get("banned_until", None):
             app.logger.warning(f"User is banned: {request.username}")
-            return jsonify({"error": "You are banned"}), 403
+            return jsonify({"error": "You are banned", "code": "banned"}), 403
         return f(*args, **kwargs)
 
     return decorated
@@ -152,29 +174,101 @@ def generate_item(owner):
             for choice in choices:
                 weights.append(1 / items[choice]["rarity"])
         return random.choices(choices, weights=weights, k=1)[0]
-      
-    rarity = round(random.uniform(0.1, 100), 1)
 
     noun = weighted_choice(NOUNS, special_case=True)
+
+    name = {
+        "adjective": weighted_choice(ADJECTIVES),
+        "material": weighted_choice(MATERIALS),
+        "noun": noun,
+        "suffix": weighted_choice(SUFFIXES),
+        "number": random.randint(1, 9999),
+        "icon": NOUNS[noun]["icon"],
+    }
+
+    meta_id = sha256(
+        f"{name['adjective']}{name['material']}{name['noun']}{name['suffix']}".encode()
+    ).hexdigest()
+
+    meta = item_meta_collection.find_one({"id": meta_id})
+    if not meta:
+        rarity = round(random.uniform(0.1, 100), 1)
+
+        meta = {
+            "id": meta_id,
+            "adjective": name["adjective"],
+            "material": name["material"],
+            "noun": name["noun"],
+            "suffix": name["suffix"],
+            "rarity": rarity,
+            "level": get_level(rarity),
+            "patented": False,
+            "patent_owner": None,
+            "price_history": [],
+        }
+        item_meta_collection.insert_one(meta)
+
     return {
         "id": str(uuid4()),
+        "meta_id": meta_id,
         "item_secret": str(uuid4()),
-        "rarity": rarity,
-        "level": get_level(rarity),
-        "name": {
-            "adjective": weighted_choice(ADJECTIVES),
-            "material": weighted_choice(MATERIALS),
-            "noun": noun,
-            "suffix": weighted_choice(SUFFIXES),
-            "number": random.randint(1, 9999),
-            "icon": NOUNS[noun]["icon"],
-        },
+        "rarity": meta["rarity"],
+        "level": meta["level"],
+        "name": name,
         "history": [],
         "for_sale": False,
         "price": 0,
         "owner": owner,
         "created_at": int(time.time()),
     }
+
+
+def update_item(item_id):
+    item = items_collection.find_one({"id": item_id})
+    if not item:
+        return
+
+    name = item["name"]
+
+    if "meta_id" not in item:
+        meta_id = sha256(
+            f"{name['adjective']}{name['material']}{name['noun']}{name['suffix']}".encode()
+        ).hexdigest()
+
+        meta = item_meta_collection.find_one({"id": meta_id})
+        if not meta:
+            rarity = round(random.uniform(0.1, 100), 1)
+
+            meta = {
+                "id": meta_id,
+                "adjective": name["adjective"],
+                "material": name["material"],
+                "noun": name["noun"],
+                "suffix": name["suffix"],
+                "rarity": rarity,
+                "level": get_level(rarity),
+                "patented": False,
+                "patent_owner": None,
+                "price_history": [],
+            }
+            item_meta_collection.insert_one(meta)
+
+    if "history" not in item:
+        items_collection.update_one({"id": item_id}, {"$set": {"history": []}})
+        items_collection.update_one(
+            {"id": item_id}, {"$set": {"rarity": round(item["rarity"], 1)}}
+        )
+
+    items_collection.update_one(
+        {"id": item_id},
+        {
+            "$set": {
+                "meta_id": meta_id,
+                "rarity": meta["rarity"],
+                "level": meta["level"],
+            }
+        },
+    )
 
 
 def get_level(rarity):
@@ -206,56 +300,52 @@ def split_name(name):
         "suffix": " ".join(name.split(" ")[3:]).split("#")[0],
         "number": " ".join(name.split(" ")[3:]).split("#")[1],
     }
-    
+
+
 def exp_for_level(level):
     return int(25 * (1.2 ** (level - 1)))
-  
+
+
 def add_exp(username, exp):
     user = users_collection.find_one({"username": username})
     if not user:
         return
 
     next_level = user["level"] + 1
-    
-    users_collection.update_one(
-        {"username": username},
-        {"$inc": {"exp": exp}}
-    )
-    
+
+    users_collection.update_one({"username": username}, {"$inc": {"exp": exp}})
+
     if user["exp"] >= exp_for_level(next_level):
         users_collection.update_one(
-            {"username": username},
-            {"$set": {"level": next_level}}
+            {"username": username}, {"$set": {"level": next_level}}
         )
-        
+
+
 def set_exp(username, exp):
     user = users_collection.find_one({"username": username})
     if not user:
         return
-      
+
     next_level = user["level"] + 1
 
-    users_collection.update_one(
-        {"username": username},
-        {"$set": {"exp": exp}}
-    )
-    
+    users_collection.update_one({"username": username}, {"$set": {"exp": exp}})
+
     if user["exp"] >= exp_for_level(next_level):
         users_collection.update_one(
-            {"username": username},
-            {"$set": {"level": next_level}}
+            {"username": username}, {"$set": {"level": next_level}}
         )
-        
+
+
 def set_level(username, level):
-  user = users_collection.find_one({"username": username})
-  if not user:
-    return
-  
-  level_exp = exp_for_level(level)
-  users_collection.update_one(
-      {"username": username},
-      {"$set": {"level": level, "exp": level_exp}}
-  )
+    user = users_collection.find_one({"username": username})
+    if not user:
+        return
+
+    level_exp = exp_for_level(level)
+    users_collection.update_one(
+        {"username": username}, {"$set": {"level": level, "exp": level_exp}}
+    )
+
 
 # Routes
 @app.route("/")
@@ -275,7 +365,12 @@ def register():
     password = data.get("password")
 
     if not username or not password:
-        return jsonify({"error": "Missing username or password"}), 400
+        return (
+            jsonify(
+                {"error": "Missing username or password", "code": "missing-credentials"}
+            ),
+            400,
+        )
 
     # Sanitize and validate username
     validateUsername = username.strip()
@@ -311,11 +406,15 @@ def register():
                 "history": [],
                 "exp": 0,
                 "level": 1,
+                "2fa_enabled": False,
             }
         )
         return jsonify({"success": True}), 201
     except DuplicateKeyError:
-        return jsonify({"error": "Username already exists"}), 400
+        return (
+            jsonify({"error": "Username already exists", "code": "username-exists"}),
+            400,
+        )
 
 
 @app.route("/api/login", methods=["POST"])
@@ -326,18 +425,119 @@ def login():
 
     user = users_collection.find_one({"username": username})
     if not user or not check_password_hash(user["password_hash"], password):
-        return jsonify({"error": "Invalid username or password"}), 401
+        return (
+            jsonify(
+                {"error": "Invalid username or password", "code": "invalid-credentials"}
+            ),
+            401,
+        )
+
+    if user["2fa_enabled"]:
+        if "token" not in data and "code" not in data:
+            return (
+                jsonify(
+                    {
+                        "error": "2FA is enabled. Please provide a OTP token or backup code",
+                        "code": "2fa-required",
+                    }
+                ),
+                401,
+            )
+            
+        if "ode" in data:
+            code = data["code"]
+            if not user["2fa_code"] == code:
+                return (
+                    jsonify({"error": "Invalid 2FA backup code", "code": "invalid-2fa-code"}),
+                    401,
+                )
+        else:
+            token = data["token"]
+            user = users_collection.find_one({"username": username})
+            totp = pyotp.TOTP(user["2fa_secret"])
+            if not totp.verify(token):
+                return (
+                    jsonify({"error": "Invalid 2FA token", "code": "invalid-2fa-token"}),
+                    401,
+                )
 
     token = str(uuid4())
     users_collection.update_one({"username": username}, {"$set": {"token": token}})
     return jsonify({"success": True, "token": token})
 
 
+@app.route("/api/setup_2fa", methods=["POST"])
+def setup_2fa():
+    user = users_collection.find_one({"username": request.username})
+    if "2fa_secret" not in user:
+        secret = pyotp.random_base32(32)
+        users_collection.update_one(
+            {"username": request.username}, {"$set": {"2fa_secret": secret}}
+        )
+    if "2fa_code" not in user:
+        code = str(uuid4())
+        users_collection.update_one(
+            {"username": request.username}, {"$set": {"2fa_code": code}}
+        )
+    totp = pyotp.TOTP(user["2fa_secret"])
+    provisioning_uri = totp.provisioning_uri(
+        name=request.username,
+        issuer_name="Economix",
+        image="https://economix.proplayer919.dev/brand/logo.png",
+    )
+    code = user["2fa_code"]
+    return jsonify({"success": True, "provisioning_uri": provisioning_uri, "backup_code": code})
+
+
+@app.route("/api/2fa_qrcode", methods=["GET"])
+def get_2fa_qrcode():
+    user = users_collection.find_one({"username": request.username})
+    if "2fa_secret" not in user:
+        return (
+            jsonify(
+                {"error": "2FA is not enabled for this user", "code": "2fa-not-enabled"}
+            ),
+            400,
+        )
+    totp = pyotp.TOTP(user["2fa_secret"])
+    provisioning_uri = totp.provisioning_uri(
+        name=request.username,
+        issuer_name="Economix",
+        image="https://economix.proplayer919.dev/brand/logo.png",
+    )
+    img = qrcode.make(provisioning_uri)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return send_file(buf, mimetype="image/png")
+
+
+@app.route("/api/verify_2fa", methods=["POST"])
+def verify_2fa():
+    user = users_collection.find_one({"username": request.username})
+    if "2fa_secret" not in user:
+        return (
+            jsonify(
+                {"error": "2FA is not setup for this user", "code": "2fa-not-setup"}
+            ),
+            400,
+        )
+    data = request.get_json()
+    token = data.get("token")
+    totp = pyotp.TOTP(user["2fa_secret"])
+    if not totp.verify(token):
+        return jsonify({"error": "Invalid 2FA token", "code": "invalid-2fa-token"}), 401
+    users_collection.update_one(
+        {"username": request.username}, {"$set": {"2fa_enabled": True}}
+    )
+    return jsonify({"success": True})
+
+
 @app.route("/api/account", methods=["GET"])
 def get_account():
     user = users_collection.find_one({"username": request.username})
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     if (
         "banned_until" not in user
@@ -348,12 +548,12 @@ def get_account():
             {"username": request.username},
             {"$set": {"banned_until": None, "banned_reason": None, "banned": False}},
         )
-        
+
     if "history" not in user:
         users_collection.update_one(
             {"username": request.username}, {"$set": {"history": []}}
         )
-        
+
     if "exp" not in user or "level" not in user:
         users_collection.update_one(
             {"username": request.username},
@@ -388,22 +588,7 @@ def get_account():
         )
 
     for item_id in user["items"]:
-        item = items_collection.find_one({"id": item_id})
-        if "rarity" not in item or "level" not in item or item.get("rarity", 0) < 0.01:
-            items_collection.update_one(
-                {"id": item_id}, {"$set": {"rarity": random.uniform(0.1, 100)}}
-            )
-            item = items_collection.find_one({"id": item_id})
-            items_collection.update_one(
-                {"id": item_id}, {"$set": {"level": get_level(item["rarity"])}}
-            )
-        if "history" not in item:
-            items_collection.update_one(
-                {"id": item_id}, {"$set": {"history": []}}
-            )
-        items_collection.update_one(
-            {"id": item_id}, {"$set": {"rarity": round(item["rarity"], 1)}}
-        )
+        update_item(item_id)
 
     # Exclude _id from the items query
     items = items_collection.find({"id": {"$in": user["items"]}}, {"_id": 0})
@@ -437,7 +622,7 @@ def delete_account():
 
     user = users_collection.find_one({"username": username})
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     # Delete user's items
     items_collection.delete_many({"owner": username})
@@ -456,14 +641,23 @@ def create_item():
 
     user = users_collection.find_one({"username": username}, {"_id": 0})
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     if now - user["last_item_time"] < ITEM_CREATE_COOLDOWN:
         remaining = ITEM_CREATE_COOLDOWN - (now - user["last_item_time"])
-        return jsonify({"error": "Cooldown active", "remaining": remaining}), 429
+        return (
+            jsonify(
+                {
+                    "error": "Cooldown active",
+                    "remaining": remaining,
+                    "code": "cooldown-active",
+                }
+            ),
+            429,
+        )
 
     if user["tokens"] < 10:
-        return jsonify({"error": "Not enough tokens"}), 402
+        return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
 
     new_item = generate_item(username)
     items_collection.insert_one(new_item)
@@ -475,14 +669,22 @@ def create_item():
             "$inc": {"tokens": -10},
         },
     )
-    
+
     users_collection.update_one(
         {"username": username},
-        {"$push": {"history": {"item_id": new_item["id"], "action": "create", "timestamp": now}}},
+        {
+            "$push": {
+                "history": {
+                    "item_id": new_item["id"],
+                    "action": "create",
+                    "timestamp": now,
+                }
+            }
+        },
     )
-    
+
     add_exp(username, 10)
-    
+
     return jsonify(
         {k: v for k, v in new_item.items() if k != "_id" and k != "item_secret"}
     )
@@ -496,25 +698,34 @@ def mine_tokens():
 
     user = users_collection.find_one({"username": username}, {"_id": 0})
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     if now - user["last_mine_time"] < TOKEN_MINE_COOLDOWN:
         remaining = TOKEN_MINE_COOLDOWN - (now - user["last_mine_time"])
-        return jsonify({"error": "Cooldown active", "remaining": remaining}), 429
+        return (
+            jsonify(
+                {
+                    "error": "Cooldown active",
+                    "remaining": remaining,
+                    "code": "cooldown-active",
+                }
+            ),
+            429,
+        )
 
     mined_tokens = random.randint(5, 10)
     users_collection.update_one(
         {"username": username},
         {"$inc": {"tokens": mined_tokens}, "$set": {"last_mine_time": now}},
     )
-    
+
     users_collection.update_one(
         {"username": username},
         {"$push": {"history": {"item_id": None, "action": "mine", "timestamp": now}}},
     )
-    
+
     add_exp(username, 5)
-    
+
     return jsonify({"success": True, "tokens": user["tokens"] + mined_tokens})
 
 
@@ -551,19 +762,27 @@ def sell_item():
 
     item = items_collection.find_one({"id": item_id, "owner": username}, {"_id": 0})
     if not item:
-        return jsonify({"error": "Item not found"}), 404
+        return jsonify({"error": "Item not found", "code": "item-not-found"}), 404
 
     update_data = {
         "for_sale": not item["for_sale"],
         "price": price if not item["for_sale"] else 0,
     }
     items_collection.update_one({"id": item_id}, {"$set": update_data})
-    
+
     users_collection.update_one(
         {"username": username},
-        {"$push": {"history": {"item_id": item_id, "action": "sell", "timestamp": time.time()}}},
+        {
+            "$push": {
+                "history": {
+                    "item_id": item_id,
+                    "action": "sell",
+                    "timestamp": time.time(),
+                }
+            }
+        },
     )
-    
+
     return jsonify({"success": True})
 
 
@@ -576,16 +795,24 @@ def buy_item():
 
     item = items_collection.find_one({"id": item_id, "for_sale": True}, {"_id": 0})
     if not item:
-        return jsonify({"error": "Item not available"}), 404
-      
+        return jsonify({"error": "Item not available", "code": "item-not-found"}), 404
+
     seller_username = item["owner"]
 
     if buyer_username == item["owner"]:
-        return jsonify({"error": "Cannot buy your own item"}), 400
+        return (
+            jsonify(
+                {
+                    "error": "Cannot buy your own item",
+                    "code": "cannot-buy-your-own-item",
+                }
+            ),
+            400,
+        )
 
     buyer = users_collection.find_one({"username": buyer_username}, {"_id": 0})
     if buyer["tokens"] < item["price"]:
-        return jsonify({"error": "Not enough tokens"}), 402
+        return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
 
     with client.start_session() as session:
         session.start_transaction()
@@ -618,17 +845,33 @@ def buy_item():
             session.commit_transaction()
         except Exception as e:
             session.abort_transaction()
-            return jsonify({"error": str(e)}), 500
+            return jsonify({"error": str(e), "code": "transaction-failed"}), 500
 
     users_collection.update_one(
         {"username": buyer_username},
-        {"$push": {"history": {"item_id": item_id, "action": "buy", "timestamp": time.time()}}},
+        {
+            "$push": {
+                "history": {
+                    "item_id": item_id,
+                    "action": "buy",
+                    "timestamp": time.time(),
+                }
+            }
+        },
     )
     users_collection.update_one(
         {"username": seller_username},
-        {"$push": {"history": {"item_id": item_id, "action": "sell_complete", "timestamp": time.time()}}},
+        {
+            "$push": {
+                "history": {
+                    "item_id": item_id,
+                    "action": "sell_complete",
+                    "timestamp": time.time(),
+                }
+            }
+        },
     )
-    
+
     add_exp(buyer_username, 5)
     add_exp(seller_username, 5)
     return jsonify({"success": True})
@@ -672,7 +915,7 @@ def take_item():
 
     item = items_collection.find_one({"item_secret": item_secret})
     if not item:
-        return jsonify({"error": "Invalid secret"}), 404
+        return jsonify({"error": "Invalid secret", "code": "invalid-secret"}), 404
 
     previous_owner = item["owner"]
     with client.start_session() as session:
@@ -699,15 +942,31 @@ def take_item():
             session.commit_transaction()
         except Exception as e:
             session.abort_transaction()
-            return jsonify({"error": str(e)}), 500
+            return jsonify({"error": str(e), "code": "transaction-failed"}), 500
 
     users_collection.update_one(
         {"username": username},
-        {"$push": {"history": {"item_id": item["id"], "action": "take", "timestamp": time.time()}}},
+        {
+            "$push": {
+                "history": {
+                    "item_id": item["id"],
+                    "action": "take",
+                    "timestamp": time.time(),
+                }
+            }
+        },
     )
     users_collection.update_one(
         {"username": previous_owner},
-        {"$push": {"history": {"item_id": item["id"], "action": "taken_from", "timestamp": time.time()}}},
+        {
+            "$push": {
+                "history": {
+                    "item_id": item["id"],
+                    "action": "taken_from",
+                    "timestamp": time.time(),
+                }
+            }
+        },
     )
     return jsonify({"success": True})
 
@@ -732,17 +991,21 @@ def edit_tokens():
     try:
         tokens = float(tokens)
     except ValueError:
-        return jsonify({"error": "Invalid tokens value"}), 400
+        return (
+            jsonify({"error": "Invalid tokens value", "code": "invalid-tokens-value"}),
+            400,
+        )
 
     target_user = users_collection.find_one({"username": target_username})
     if not target_user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     users_collection.update_one(
         {"username": target_username}, {"$set": {"tokens": tokens}}
     )
     return jsonify({"success": True})
-  
+
+
 @app.route("/api/edit_exp", methods=["POST"])
 @requires_admin
 def edit_exp():
@@ -753,18 +1016,22 @@ def edit_exp():
     try:
         exp = float(exp)
     except ValueError:
-        return jsonify({"error": "Invalid exp value"}), 400
-      
+        return jsonify({"error": "Invalid exp value", "code": "invalid-value"}), 400
+
     if exp < 0:
-        return jsonify({"error": "Exp cannot be negative"}), 400
+        return (
+            jsonify({"error": "Exp cannot be negative", "code": "cannot-be-negative"}),
+            400,
+        )
 
     target_user = users_collection.find_one({"username": target_username})
     if not target_user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     set_exp(target_username, exp)
     return jsonify({"success": True})
-  
+
+
 @app.route("/api/edit_level", methods=["POST"])
 @requires_admin
 def edit_level():
@@ -775,14 +1042,19 @@ def edit_level():
     try:
         level = int(level)
     except ValueError:
-        return jsonify({"error": "Invalid level value"}), 400
-      
+        return jsonify({"error": "Invalid level value", "code": "invalid-value"}), 400
+
     if level < 0:
-        return jsonify({"error": "Level cannot be negative"}), 400
+        return (
+            jsonify(
+                {"error": "Level cannot be negative", "code": "cannot-be-negative"}
+            ),
+            400,
+        )
 
     target_user = users_collection.find_one({"username": target_username})
     if not target_user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     set_level(target_username, level)
     return jsonify({"success": True})
@@ -796,7 +1068,7 @@ def add_admin():
 
     user = users_collection.find_one({"username": username})
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     users_collection.update_one({"username": username}, {"$set": {"type": "admin"}})
     return jsonify({"success": True})
@@ -810,7 +1082,7 @@ def add_mod():
 
     user = users_collection.find_one({"username": username})
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     users_collection.update_one({"username": username}, {"$set": {"type": "mod"}})
     return jsonify({"success": True})
@@ -824,7 +1096,7 @@ def remove_mod():
 
     user = users_collection.find_one({"username": username})
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     users_collection.update_one({"username": username}, {"$set": {"type": "user"}})
     return jsonify({"success": True})
@@ -841,7 +1113,7 @@ def edit_item():
 
     item = items_collection.find_one({"id": item_id})
     if not item:
-        return jsonify({"error": "Item not found"}), 404
+        return jsonify({"error": "Item not found", "code": "item-not-found"}), 404
 
     updates = {}
     if new_name:
@@ -871,7 +1143,7 @@ def delete_item():
 
     item = items_collection.find_one({"id": item_id})
     if not item:
-        return jsonify({"error": "Item not found"}), 404
+        return jsonify({"error": "Item not found", "code": "item-not-found"}), 404
 
     owner = item["owner"]
     users_collection.update_one({"username": owner}, {"$pull": {"items": item_id}})
@@ -889,10 +1161,13 @@ def ban_user():
 
     user = users_collection.find_one({"username": username})
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     if user.get("type") == "admin":
-        return jsonify({"error": "Cannot ban an admin"}), 403
+        return (
+            jsonify({"error": "Cannot ban an admin", "code": "cannot-ban-admin"}),
+            403,
+        )
 
     now = time.time()
     if not length or length.lower() == "perma":
@@ -933,7 +1208,7 @@ def unban_user():
 
     user = users_collection.find_one({"username": username})
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     users_collection.update_one(
         {"username": username},
@@ -950,7 +1225,7 @@ def freeze_user():
 
     user = users_collection.find_one({"username": username})
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     users_collection.update_one({"username": username}, {"$set": {"frozen": True}})
     return jsonify({"success": True})
@@ -964,7 +1239,7 @@ def unfreeze_user():
 
     user = users_collection.find_one({"username": username})
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     users_collection.update_one({"username": username}, {"$set": {"frozen": False}})
     return jsonify({"success": True})
@@ -979,7 +1254,7 @@ def mute_user():
 
     user = users_collection.find_one({"username": username})
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     now = time.time()
     if not length or length.lower() == "perma":
@@ -1020,7 +1295,7 @@ def unmute_user():
 
     user = users_collection.find_one({"username": username})
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     users_collection.update_one(
         {"username": username}, {"$set": {"muted": False, "muted_until": None}}
@@ -1037,7 +1312,7 @@ def fine_user():
 
     user = users_collection.find_one({"username": username})
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     users_collection.update_one({"username": username}, {"$inc": {"tokens": -amount}})
     return jsonify({"success": True})
@@ -1061,19 +1336,25 @@ def send_message():
 
     user = users_collection.find_one({"username": username})
     if user["muted"]:
-        return jsonify({"error": "You are muted"}), 400
+        return jsonify({"error": "You are muted", "code": "user-muted"}), 400
 
     if not room or not message:
-        return jsonify({"error": "Missing room or message"}), 400
+        return (
+            jsonify({"error": "Missing room or message", "code": "missing-parameters"}),
+            400,
+        )
 
     # Validate room name
     if not re.match(r"^[a-zA-Z0-9_-]{1,50}$", room):
-        return jsonify({"error": "Invalid room name"}), 400
+        return jsonify({"error": "Invalid room name", "code": "invalid-room"}), 400
 
     # Sanitize message content
     sanitized_message = html.escape(message.strip())
     if len(sanitized_message) == 0:
-        return jsonify({"error": "Message cannot be empty"}), 400
+        return (
+            jsonify({"error": "Message cannot be empty", "code": "empty-message"}),
+            400,
+        )
     if len(sanitized_message) > 500:
         sanitized_message = sanitized_message[:500]
 
@@ -1097,7 +1378,10 @@ def send_message():
 def get_messages():
     room = request.args.get("room")
     if not room:
-        return jsonify({"error": "Missing room parameter"}), 400
+        return (
+            jsonify({"error": "Missing room parameter", "code": "missing-parameters"}),
+            400,
+        )
 
     messages = messages_collection.find({"room": room}, {"_id": 0}).sort(
         "timestamp", ASCENDING

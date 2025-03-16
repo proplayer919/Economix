@@ -230,6 +230,21 @@
       </div>
     </div>
 
+    <!-- 2FA Setup Page -->
+    <div id="2faSetupPage" style="display: none;">
+      <div class="card card-center">
+        <div class="card-header">
+          <h2>🔑 2FA Setup</h2>
+        </div>
+        <p>Scan the QR code below with your authenticator app:</p>
+        <img id="2faQrCode" src="" alt="2FA QR Code">
+        <p>Enter the code from your authenticator app:</p>
+        <input type="text" id="2faCode" placeholder="Enter code">
+        <button class="btn btn-primary" id="2faSetupSubmit">Submit</button>
+        <button class="btn btn-danger" id="2faSetupCancel">Cancel</button>
+      </div>
+    </div>
+
     <!-- Custom Modal -->
     <div id="customModal" class="modal">
       <div class="modal-content">

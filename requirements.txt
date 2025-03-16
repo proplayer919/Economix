@@ -3,3 +3,5 @@ flask_cors
 werkzeug
 pymongo
 gunicorn
+pyotp
+qrcode

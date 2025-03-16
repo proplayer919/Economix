@@ -125,17 +125,47 @@ document.querySelectorAll('.tab').forEach(btn => {
 });
 
 // Auth functions
-function handleLogin() {
+function handleLogin(code) {
   const username = document.getElementById('loginUsername').value;
   const password = document.getElementById('loginPassword').value;
+
+  let body = {
+    username: username,
+    password: password
+  }
+
+  if (code) {
+    if (code.length == 6) {
+      body = {
+        username: username,
+        password: password,
+        token: code
+      }
+    }
+    else {
+      body = {
+        username: username,
+        password: password,
+        code: code
+      }
+    }
+  }
 
   fetch('/api/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify(body)
   })
     .then(res => res.json())
     .then(data => {
+      if (data.code == "2fa-required") {
+        customPrompt('Enter 2FA code or Backup code:').then(code => {
+          if (!code) location.reload();
+          handleLogin(code);
+        });
+        return;
+      }
+
       if (data.token) {
         localStorage.setItem('token', data.token);
         token = data.token;
@@ -245,7 +275,7 @@ function refreshAccount() {
       const mineCooldownEl = document.getElementById('mineCooldown');
       mineCooldownEl.innerHTML = mineRemaining > 0 ?
         `Mining cooldown: ${Math.ceil(mineRemaining / 60)}m remaining.${account.type === 'admin' ? ' <a href="#" onclick="resetCooldown()">Skip cooldown? (Admin)</a>' : ''}` : '';
-      
+
       if (socket && socket.connected) {
         socket.emit('force_refresh', { username: data.username });
       }
@@ -934,7 +964,7 @@ function fineUser() {
           } else {
             customAlert('Error fining user.');
           }
-        });    
+        });
     });
   });
 }
@@ -1063,6 +1093,62 @@ function deleteAccount() {
   });
 }
 
+let backupCode = '';
+
+function setup2FA() {
+  // Generate QR code
+  fetch('/api/setup_2fa', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        backupCode = data.backup_code;
+        fetch('/api/2fa_qrcode', {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+          .then(res => res.blob())
+          .then(blob => {
+            const url = URL.createObjectURL(blob);
+            const qrCodeImage = document.getElementById('2faQrCode');
+            qrCodeImage.src = url;
+            qrCodeImage.style.display = 'block';
+          });
+      }
+      else {
+        customAlert("Failed to setup 2FA.");
+      }
+    });
+
+  // Hide main content
+  document.getElementById('main-content').style.display = 'none';
+
+  // Show 2FA setup page
+  document.getElementById('2faSetupPage').style.display = 'block';
+}
+
+function enable2FA() {
+  const code = document.getElementById('2faCode').value;
+  fetch('/api/verify_2fa', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ token: code })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        customAlert('2FA enabled! Make sure to save this backup code in a safe place: ' + backupCode).then(() => {
+          location.reload();
+        });
+      }
+      else {
+        customAlert("Failed to enable 2FA.");
+      }
+    });
+}
+
 // Helper functions for auto-scrolling
 function isUserAtBottom(container) {
   // Allow a small threshold (e.g., 2 pixels) for precision issues.
@@ -1086,6 +1172,15 @@ document.getElementById('logout').addEventListener('click', () => {
     socket = null;
   }
   location.reload();
+});
+document.getElementById('setup2FA').addEventListener('click', setup2FA);
+document.getElementById('2faSetupSubmit').addEventListener('click', enable2FA);
+document.getElementById('2faSetupCancel').addEventListener('click', () => {
+  // Hide 2FA setup page
+  document.getElementById('2faSetupPage').style.display = 'none';
+
+  // Show main content
+  document.getElementById('main-content').style.display = 'block';
 });
 
 // Interval
