@@ -229,6 +229,8 @@ def update_item(item_id):
         return
 
     name = item["name"]
+    
+    meta_id = None
 
     if "meta_id" not in item:
         meta_id = sha256(
@@ -252,6 +254,9 @@ def update_item(item_id):
                 "price_history": [],
             }
             item_meta_collection.insert_one(meta)
+    else:
+        meta_id = item["meta_id"]
+        meta = item_meta_collection.find_one({"id": meta_id})
 
     if "history" not in item:
         items_collection.update_one({"id": item_id}, {"$set": {"history": []}})
