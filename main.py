@@ -1142,6 +1142,9 @@ def edit_item():
     if new_rarity:
         updates["rarity"] = float(new_rarity)
         updates["level"] = get_level(float(new_rarity))
+        item_meta_collection.update_one(
+            {"id": item["meta_id"]}, {"$set": {"rarity": float(new_rarity)}}
+        )
 
     if updates:
         items_collection.update_one({"id": item_id}, {"$set": updates})
