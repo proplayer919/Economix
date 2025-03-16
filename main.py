@@ -412,6 +412,7 @@ def register():
                 "exp": 0,
                 "level": 1,
                 "2fa_enabled": False,
+                "inventory_visibility": "private",
             }
         )
         return jsonify({"success": True}), 201
@@ -492,6 +493,11 @@ def setup_2fa():
         code = str(uuid4())
         users_collection.update_one(
             {"username": request.username}, {"$set": {"2fa_code": code}}
+        )
+    if "inventory_visibility" not in user:
+        users_collection.update_one(
+            {"username": request.username},
+            {"$set": {"inventory_visibility": "private"}},
         )
     user = users_collection.find_one({"username": request.username})
     totp = pyotp.TOTP(user["2fa_secret"])
@@ -897,6 +903,12 @@ def buy_item():
             }
         },
     )
+    
+    meta_id = item["meta_id"]
+    meta = item_meta_collection.find_one({"id": meta_id})
+    if meta:
+        meta["price_history"].append({"timestamp": time.time(), "price": item["price"]})
+        item_meta_collection.update_one({"id": meta_id}, {"$set": meta})
 
     add_exp(buyer_username, 5)
     add_exp(seller_username, 5)
@@ -1446,3 +1458,43 @@ def get_stats():
             ]
         }
     )
+
+@app.route("/dev/api/get_item_info/<string:item_id>", methods=["GET"])
+def get_item_info(item_id):
+    item = items_collection.find_one(
+        {"item_id": item_id},
+        {"_id": 0, "item_secret": 0},
+    )
+    if not item:
+        return jsonify({"error": "Item not found", "code": "item-not-found"}), 404
+    return jsonify({"item": item})
+
+@app.route("/dev/api/get_item_meta/<string:meta_id>", methods=["GET"])
+def get_item_meta(meta_id):
+    item = item_meta_collection.find_one(
+        {"meta_id": meta_id},
+        {"_id": 0},
+    )
+    if not item:
+        return jsonify({"error": "Item not found", "code": "item-not-found"}), 404
+    return jsonify({"item": item})
+
+
+@app.route("/dev/api/get_user_info/<string:username>", methods=["GET"])
+def get_user_info(username):
+    user = users_collection.find_one(
+        {"username": username},
+        {"_id": 0, "password_hash": 0, "token": 0, "2fa_enabled": 0, "2fa_secret": 0, "2fa_code": 0},
+    )
+    if not user:
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+    inventory_visible = user.get("inventory_visibility", "private")
+    if inventory_visible == "private":
+        user["inventory"] = None
+    return jsonify({"user": user})
+
+
+@app.route("/dev/api/get_market", methods=["GET"])
+def get_market():
+    market = items_collection.find({"market": True}, {"_id": 0, "owner": 0})
+    return jsonify({"market": list(market)})
