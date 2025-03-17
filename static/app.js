@@ -1196,11 +1196,7 @@ document.getElementById('setup2FA').addEventListener('click', setup2FA);
 document.getElementById('disable2FA').addEventListener('click', disable2FA);
 document.getElementById('2faSetupSubmit').addEventListener('click', enable2FA);
 document.getElementById('2faSetupCancel').addEventListener('click', () => {
-  // Hide 2FA setup page
-  document.getElementById('2faSetupPage').style.display = 'none';
-
-  // Show main content
-  document.getElementById('main-content').style.display = 'block';
+  location.reload();
 });
 
 // Interval
