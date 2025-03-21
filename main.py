@@ -1526,6 +1526,16 @@ def send_message():
                     "type": "system",
                 }
             )
+        elif command == "help":
+            messages_collection.insert_one(
+                {
+                    "room": room_name,
+                    "username": "System",
+                    "message": "Available commands: /clear_chat, /delete_many <username>, /ban <username> <duration> <reason>, /mute <username> <duration>, /help",
+                    "timestamp": time.time(),
+                    "type": "system",
+                }
+            )
 
     messages_collection.insert_one(
         {
