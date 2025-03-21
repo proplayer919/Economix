@@ -59,8 +59,8 @@ item_meta_collection.create_index([("id", ASCENDING)])
 
 # Configuration constants
 ITEM_CREATE_COOLDOWN = int(os.environ.get("ITEM_CREATE_COOLDOWN", 60))
-TOKEN_MINE_COOLDOWN = int(os.environ.get("TOKEN_MINE_COOLDOWN", 600))
-MAX_ITEM_PRICE = 10000
+TOKEN_MINE_COOLDOWN = int(os.environ.get("TOKEN_MINE_COOLDOWN", 120))
+MAX_ITEM_PRICE = 1000000000000
 MIN_ITEM_PRICE = 1
 
 # Item generation constants

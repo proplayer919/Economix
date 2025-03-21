@@ -264,6 +264,7 @@ function refreshAccount() {
       // Render inventory with pagination
       renderInventory(items);
 
+
       // Update cooldowns
       const now = Date.now() / 1000;
       const remaining = ITEM_CREATE_COOLDOWN - (now - data.last_item_time);
@@ -274,7 +275,7 @@ function refreshAccount() {
       const mineRemaining = TOKEN_MINE_COOLDOWN - (now - data.last_mine_time);
       const mineCooldownEl = document.getElementById('mineCooldown');
       mineCooldownEl.innerHTML = mineRemaining > 0 ?
-        `Mining cooldown: ${Math.ceil(mineRemaining / 60)}m remaining.${account.type === 'admin' ? ' <a href="#" onclick="resetCooldown()">Skip cooldown? (Admin)</a>' : ''}` : '';
+        `Mining cooldown: ${Math.ceil(mineRemaining)}s remaining.${account.type === 'admin' ? ' <a href="#" onclick="resetCooldown()">Skip cooldown? (Admin)</a>' : ''}` : '';
     });
 }
 
@@ -292,83 +293,88 @@ function refreshMarket() {
     });
 }
 
-// Render inventory items with pagination
-function renderInventory(inventoryItems) {
-  const itemsList = document.getElementById('itemsList');
-  itemsList.innerHTML = '';
+// Update cooldowns
+const now = Date.now() / 1000;
+const remaining = ITEM_CREATE_COOLDOWN - (now - data.last_item_time);
+const cooldownEl = document.getElementById('cooldown');
+cooldownEl.innerHTML =
+  // Render inventory items with pagination
+  function renderInventory(inventoryItems) {
+    const itemsList = document.getElementById('itemsList');
+    itemsList.innerHTML = '';
 
-  const startIndex = (inventoryPage - 1) * itemsPerPage;
-  const pagedItems = inventoryItems.slice(startIndex, startIndex + itemsPerPage);
+    const startIndex = (inventoryPage - 1) * itemsPerPage;
+    const pagedItems = inventoryItems.slice(startIndex, startIndex + itemsPerPage);
 
-  pagedItems.forEach(item => {
-    const li = document.createElement('li');
-    li.textContent = `${item.name.icon} ${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number} (${item.rarity} ${item.level}) ${item.for_sale ? `(For Sale for ${item.price} tokens)` : ""}`;
+    pagedItems.forEach(item => {
+      const li = document.createElement('li');
+      li.textContent = `${item.name.icon} ${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number} (${item.rarity} ${item.level}) ${item.for_sale ? `(For Sale for ${item.price} tokens)` : ""}`;
 
-    const sellBtn = document.createElement('button');
-    sellBtn.classList.add('btn', 'btn-secondary');
-    sellBtn.textContent = item.for_sale ? 'Cancel Sale' : 'Sell';
-    sellBtn.onclick = item.for_sale ? () => cancelSale(item.id) : () => sellItem(item.id);
+      const sellBtn = document.createElement('button');
+      sellBtn.classList.add('btn', 'btn-secondary');
+      sellBtn.textContent = item.for_sale ? 'Cancel Sale' : 'Sell';
+      sellBtn.onclick = item.for_sale ? () => cancelSale(item.id) : () => sellItem(item.id);
 
-    const viewSecretBtn = document.createElement('button');
-    viewSecretBtn.classList.add('btn', 'btn-danger');
-    viewSecretBtn.textContent = 'View Secret';
-    viewSecretBtn.onclick = () => viewSecret(item.id);
+      const viewSecretBtn = document.createElement('button');
+      viewSecretBtn.classList.add('btn', 'btn-danger');
+      viewSecretBtn.textContent = 'View Secret';
+      viewSecretBtn.onclick = () => viewSecret(item.id);
 
-    li.appendChild(sellBtn);
-    li.appendChild(viewSecretBtn);
+      li.appendChild(sellBtn);
+      li.appendChild(viewSecretBtn);
 
-    if (account.type === 'admin') {
-      const editBtn = document.createElement('button');
-      editBtn.classList.add('btn', 'btn-primary');
-      editBtn.textContent = 'Edit (Admin)';
-      editBtn.onclick = () => editItem(item.id);
+      if (account.type === 'admin') {
+        const editBtn = document.createElement('button');
+        editBtn.classList.add('btn', 'btn-primary');
+        editBtn.textContent = 'Edit (Admin)';
+        editBtn.onclick = () => editItem(item.id);
 
-      const deleteBtn = document.createElement('button');
-      deleteBtn.classList.add('btn', 'btn-danger');
-      deleteBtn.textContent = 'Delete (Admin)';
-      deleteBtn.onclick = () => deleteItem(item.id);
+        const deleteBtn = document.createElement('button');
+        deleteBtn.classList.add('btn', 'btn-danger');
+        deleteBtn.textContent = 'Delete (Admin)';
+        deleteBtn.onclick = () => deleteItem(item.id);
 
-      li.appendChild(editBtn);
-      li.appendChild(deleteBtn);
-    }
+        li.appendChild(editBtn);
+        li.appendChild(deleteBtn);
+      }
 
-    itemsList.appendChild(li);
-  });
+      itemsList.appendChild(li);
+    });
 
-  // Update pagination controls for inventory
-  const paginationContainer = document.getElementById('inventoryPagination');
-  paginationContainer.innerHTML = '';
-  const totalPages = Math.ceil(inventoryItems.length / itemsPerPage);
+    // Update pagination controls for inventory
+    const paginationContainer = document.getElementById('inventoryPagination');
+    paginationContainer.innerHTML = '';
+    const totalPages = Math.ceil(inventoryItems.length / itemsPerPage);
 
-  const prevBtn = document.createElement('button');
-  prevBtn.textContent = 'Prev';
-  prevBtn.classList.add('btn', 'btn-primary');
-  prevBtn.disabled = inventoryPage === 1;
-  prevBtn.onclick = () => {
-    if (inventoryPage > 1) {
-      inventoryPage--;
-      renderInventory(inventoryItems);
-    }
-  };
+    const prevBtn = document.createElement('button');
+    prevBtn.textContent = 'Prev';
+    prevBtn.classList.add('btn', 'btn-primary');
+    prevBtn.disabled = inventoryPage === 1;
+    prevBtn.onclick = () => {
+      if (inventoryPage > 1) {
+        inventoryPage--;
+        renderInventory(inventoryItems);
+      }
+    };
 
-  const nextBtn = document.createElement('button');
-  nextBtn.textContent = 'Next';
-  nextBtn.classList.add('btn', 'btn-primary');
-  nextBtn.disabled = inventoryPage >= totalPages;
-  nextBtn.onclick = () => {
-    if (inventoryPage < totalPages) {
-      inventoryPage++;
-      renderInventory(inventoryItems);
-    }
-  };
+    const nextBtn = document.createElement('button');
+    nextBtn.textContent = 'Next';
+    nextBtn.classList.add('btn', 'btn-primary');
+    nextBtn.disabled = inventoryPage >= totalPages;
+    nextBtn.onclick = () => {
+      if (inventoryPage < totalPages) {
+        inventoryPage++;
+        renderInventory(inventoryItems);
+      }
+    };
 
-  const pageInfo = document.createElement('span');
-  pageInfo.textContent = ` Page ${inventoryPage} of ${totalPages} `;
+    const pageInfo = document.createElement('span');
+    pageInfo.textContent = ` Page ${inventoryPage} of ${totalPages} `;
 
-  paginationContainer.appendChild(prevBtn);
-  paginationContainer.appendChild(pageInfo);
-  paginationContainer.appendChild(nextBtn);
-}
+    paginationContainer.appendChild(prevBtn);
+    paginationContainer.appendChild(pageInfo);
+    paginationContainer.appendChild(nextBtn);
+  }
 
 // Render marketplace items with pagination
 function renderMarketplace(marketItems) {
@@ -1187,7 +1193,7 @@ document.getElementById('createItem').addEventListener('click', createItem);
 document.getElementById('mineItem').addEventListener('click', mineTokens);
 document.getElementById('takeItem').addEventListener('click', takeItem);
 document.getElementById('sendMessage').addEventListener('click', sendGlobalMessage);
-document.getElementById('messageInput').addEventListener("keyup", function(event) {
+document.getElementById('messageInput').addEventListener("keyup", function (event) {
   if (event.key === "Enter") {
     sendGlobalMessage();
   };
