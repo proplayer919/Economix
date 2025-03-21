@@ -1508,13 +1508,14 @@ def send_message():
             amount = args[0]
             try:
                 amount = int(amount)
-                for _ in range(amount):
-                    messages = list(messages_collection.find({"room": room_name}).sort("timestamp", DESCENDING).limit(amount))
-                    for message in messages:
-                        messages_collection.delete_one({"_id": message["_id"]})
-                system_message = f"Deleted the last {amount} messages in {room_name}"
+                messages_to_delete = messages_collection.find(
+                    {"room": room_name}
+                ).sort("timestamp", DESCENDING).limit(amount)
+                ids_to_delete = [doc["_id"] for doc in messages_to_delete]
+                messages_collection.delete_many({"_id": {"$in": ids_to_delete}})
             except ValueError:
                 system_message = "Invalid amount specified for deletion"
+
         elif command == "ban" and len(args) >= 3:
             target_username, duration, *reason_parts = args
             reason = " ".join(reason_parts)
@@ -1551,7 +1552,7 @@ def send_message():
         messages_collection.insert_one(
             {
                 "room": room_name,
-                "username": "System",
+                "username": "Command Handler",
                 "message": system_message,
                 "timestamp": time.time(),
                 "type": "system",
