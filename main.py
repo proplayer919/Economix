@@ -1554,7 +1554,7 @@ def send_message():
                 )
         elif command == "list_banned":
             banned_users = users_collection.find({"banned": True})
-            banned_users_list = "\n".join([f"{user['username']} - {user['ban_reason']}" for user in banned_users])
+            banned_users_list = "\n".join([f"{user['username']} - {user.get("ban_reason", "No reason provided")}" for user in banned_users])
             system_message = "Banned users:\n" + banned_users_list
         elif command == "list_frozen":
             frozen_users = users_collection.find({"frozen": True})
