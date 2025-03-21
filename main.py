@@ -494,11 +494,6 @@ def setup_2fa():
         users_collection.update_one(
             {"username": request.username}, {"$set": {"2fa_code": code}}
         )
-    if "inventory_visibility" not in user:
-        users_collection.update_one(
-            {"username": request.username},
-            {"$set": {"inventory_visibility": "private"}},
-        )
     user = users_collection.find_one({"username": request.username})
     totp = pyotp.TOTP(user["2fa_secret"])
     provisioning_uri = totp.provisioning_uri(
@@ -601,6 +596,12 @@ def get_account():
         users_collection.update_one(
             {"username": request.username},
             {"$set": {"muted": False, "muted_until": None}},
+        )
+        
+    if "inventory_visibility" not in user:
+        users_collection.update_one(
+            {"username": request.username},
+            {"$set": {"inventory_visibility": "private"}},
         )
 
     if user.get("banned_until", None) and (
