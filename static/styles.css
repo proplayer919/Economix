@@ -34,33 +34,24 @@ body {
   padding: 0 1rem;
 }
 
-/* Sidebar now within the parent layout */
-.sidebar {
-  flex: 0 0 250px;
-  background: var(--card-bg);
-  padding: 1rem;
-  border-right: 1px solid var(--border);
+/* Navbar */
+.navbar {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid var(--border);
+  flex-wrap: wrap;
 }
 
-.sidebar h2 {
-  margin: 0.9rem 0;
-}
-
-.sidebar .card-header h2 {
-  margin-bottom: 1rem;
-}
-
-/* Main content area where sidebar is not taking over the full page */
-.chat-area {
-  flex: 1;
+.user-info {
   display: flex;
-  flex-direction: column;
-  padding: 1rem;
+  align-items: center;
+  gap: 1rem;
 }
 
-/* Cards and Forms */
+/* Card Container for Auth Forms */
 .card-container {
   display: grid;
   gap: 2rem;
@@ -68,6 +59,7 @@ body {
   margin: 2rem auto;
 }
 
+/* Cards and Forms */
 .card {
   background: var(--card-bg);
   padding: 1.5rem;
@@ -99,27 +91,13 @@ h2 {
   margin-bottom: 0.5rem;
 }
 
-/* Navigation */
-.navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 0;
-  margin-bottom: 2rem;
-  border-bottom: 2px solid var(--border);
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
 /* Tabs */
 .tabs {
   display: flex;
   border-bottom: 2px solid var(--border);
   margin-bottom: 1rem;
+  overflow-x: auto;
+  white-space: nowrap;
 }
 
 .tab {
@@ -131,6 +109,7 @@ h2 {
   margin-right: 0.5rem;
   border-top-left-radius: 0.5rem;
   border-top-right-radius: 0.5rem;
+  flex-shrink: 0;
 }
 
 .tab.active {
@@ -142,18 +121,39 @@ h2 {
   display: none;
 }
 
-/* Chat Tab Styles */
-.tab-content#tab-chat {
-  flex-direction: column;
-  height: 100%;
-}
-
-.tab-contents#tab-chat .tab-content.active {
-  display: flex;
-}
-
 .tab-contents .tab-content.active {
   display: block;
+}
+
+/* Chat Tab Specific Styles */
+.chat-card {
+  display: flex;
+  flex-direction: row;
+  height: 600px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+
+.sidebar {
+  flex: 0 0 250px;
+  background: var(--card-bg);
+  padding: 1rem;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar h2,
+.sidebar .card-header h2 {
+  margin: 0.9rem 0;
+}
+
+.chat-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
 }
 
 /* Buttons */
@@ -168,14 +168,6 @@ h2 {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.btn#tab-inventory {
-  margin-left: 0.5rem;
-}
-
-.btn#tab-market {
-  margin-left: 0.5rem;
 }
 
 .btn-primary {
@@ -197,7 +189,7 @@ h2 {
   color: #fff;
 }
 
-/* Form Inputs */
+/* Inputs */
 input[type="text"],
 input[type="email"],
 input[type="password"],
@@ -214,14 +206,6 @@ textarea:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-}
-
-/* Chat Area Specifics */
-.message-container {
-  flex: 1;
-  overflow-y: auto;
-  padding-right: 1rem;
-  margin-bottom: 1rem;
 }
 
 /* Lists */
@@ -242,6 +226,7 @@ textarea:focus {
   align-items: center;
 }
 
+/* Badges */
 .badge {
   padding: 0.25rem 0.75rem;
   border-radius: 999px;
@@ -299,17 +284,6 @@ textarea:focus {
   margin-bottom: 0.5rem;
 }
 
-/* Links and Footer */
-a {
-  text-decoration: underline;
-  color: var(--text);
-}
-
-.footer {
-  text-align: center;
-  margin-top: 2rem;
-}
-
 /* Message Input Area */
 .message-input {
   display: flex;
@@ -322,20 +296,6 @@ a {
   border: 1px solid var(--border);
   border-radius: 0.5rem;
   transition: border-color 0.2s ease;
-}
-
-.message-input input[type="text"]:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-}
-
-.message-input input {
-  flex: 1;
-  padding: 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  margin-right: 0.5rem;
 }
 
 .message-input button {
@@ -353,15 +313,13 @@ a {
   background: var(--secondary);
 }
 
-/* Highlighted Elements */
-.highlight {
-  background: var(--primary);
-  color: #fff;
-  border-radius: 0.25rem;
-  padding: 0.25rem 0.5rem;
+/* Chat Tabs */
+.chat-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-/* Chat Tabs */
 .chat-tabs button {
   width: 100%;
   padding: 0.75rem;
@@ -382,44 +340,27 @@ a {
   background: var(--secondary);
 }
 
-.chat-tabs {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-/* Chat Card */
-.chat-card {
-  display: flex;
-  flex-direction: row;
-  height: 600px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-}
-
-/* Chat Messages */
-.message {
-  background: var(--background);
-  color: var(--text);
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  margin-bottom: 0.5rem;
-  max-width: 70%;
-  word-wrap: break-word;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.message.own {
+/* Highlighted Elements */
+.highlight {
   background: var(--primary);
   color: #fff;
-  margin-left: auto;
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+}
+
+/* Footer and Links */
+a {
+  text-decoration: underline;
+  color: var(--text);
+}
+
+.footer {
+  text-align: center;
+  margin-top: 2rem;
 }
 
 /* Responsive Adjustments */
 @media (max-width: 1024px) {
-
-  /* In tablet view, layout remains flexible */
   .chat-card {
     flex-direction: row;
   }
@@ -438,26 +379,29 @@ a {
     grid-template-columns: 1fr;
   }
 
-  /* Sidebar becomes full-width on mobile */
+  /* Navbar: Stack heading and user-info */
+  .navbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* Chat card adjustments for mobile */
   .chat-card {
     flex-direction: column;
     height: auto;
   }
 
   .sidebar {
-    flex: none;
     width: 100%;
     border-right: none;
     border-bottom: 1px solid var(--border);
   }
 
-  /* Ensure main content adjusts */
   .chat-area {
     padding: 0.5rem;
   }
 
   .message-input {
-    position: relative;
     width: 100%;
     margin-top: 1rem;
     margin-bottom: 1rem;
