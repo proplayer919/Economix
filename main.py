@@ -1499,11 +1499,22 @@ def send_message():
 
         if command == "clear_chat":
             messages_collection.delete_many({"room": room_name})
-            system_message = f"Banned {username} for {sanitized_message[1:]} ({room_name})"
-        elif command == "delete_many" and len(args) == 1:
+            system_message = f"Cleared chat in {room_name}"
+        elif command == "clear_user" and len(args) == 1:
             target_username = args[0]
             messages_collection.delete_many({"room": room_name, "username": target_username})
             system_message = f"Deleted messages from {target_username} in {room_name}"
+        elif command == "delete_many" and len(args) == 1:
+            amount = args[0]
+            try:
+                amount = int(amount)
+                for _ in range(amount):
+                    messages = list(messages_collection.find({"room": room_name}).sort("timestamp", DESCENDING).limit(amount))
+                    for message in messages:
+                        messages_collection.delete_one({"_id": message["_id"]})
+                system_message = f"Deleted the last {amount} messages in {room_name}"
+            except ValueError:
+                system_message = "Invalid amount specified for deletion"
         elif command == "ban" and len(args) >= 3:
             target_username, duration, *reason_parts = args
             reason = " ".join(reason_parts)
@@ -1524,7 +1535,7 @@ def send_message():
             _unmute_user(target_username)
             system_message = f"Unmuted {target_username}"
         elif command == "help":
-            system_message = "Available commands: /clear_chat, /delete_many <username>, /ban <username> <duration> <reason>, /mute <username> <duration>, /unban <username>, /unmute <username>, /help"
+            system_message = "Available commands: /clear_chat, /clear_user <username>, /delete_many <amount>, /ban <username> <duration> <reason>, /mute <username> <duration>, /unban <username>, /unmute <username>, /help"
 
     messages_collection.insert_one(
         {
