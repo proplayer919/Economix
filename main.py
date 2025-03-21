@@ -1513,6 +1513,7 @@ def send_message():
                 ).sort("timestamp", DESCENDING).limit(amount)
                 ids_to_delete = [doc["_id"] for doc in messages_to_delete]
                 messages_collection.delete_many({"_id": {"$in": ids_to_delete}})
+                system_message = f"Deleted {amount} messages from {room_name}"
             except ValueError:
                 system_message = "Invalid amount specified for deletion"
 
@@ -1537,16 +1538,16 @@ def send_message():
             system_message = f"Unmuted {target_username}"
         elif command == "help":
             system_message = "Available commands: /clear_chat, /clear_user <username>, /delete_many <amount>, /ban <username> <duration> <reason>, /mute <username> <duration>, /unban <username>, /unmute <username>, /help"
-
-    messages_collection.insert_one(
-        {
-            "room": room_name,
-            "username": username,
-            "message": sanitized_message,
-            "timestamp": time.time(),
-            "type": user["type"],
-        }
-    )
+    else:
+        messages_collection.insert_one(
+            {
+                "room": room_name,
+                "username": username,
+                "message": sanitized_message,
+                "timestamp": time.time(),
+                "type": user["type"],
+            }
+        )
 
     if system_message:
         messages_collection.insert_one(
