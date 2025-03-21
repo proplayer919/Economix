@@ -746,21 +746,19 @@ function sanitizeHTML(html) {
 }
 
 function deleteMessage(message) {
-  if (customConfirm("Are you sure you want to delete this message?")) {
-    fetch('/api/delete_message', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ message: message })
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          refreshGlobalMessages();
-        } else {
-          customAlert('Error deleting message.');
-        }
-      });
-  }
+  fetch('/api/delete_message', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ message: message })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        refreshGlobalMessages();
+      } else {
+        customAlert('Error deleting message.');
+      }
+    });
 }
 
 function refreshGlobalMessages() {
@@ -787,7 +785,7 @@ function refreshGlobalMessages() {
           messageElement.innerText = ": " + message.message.replace(/\s{2,}/g, ' ');
           messageElement.prepend(bold);
 
-          const deleteMessageElement = document.createElement('a');
+          const deleteMessageElement = document.createElement('span');
           deleteMessageElement.innerHTML = '🗑️';
           deleteMessageElement.onclick = () => {
             deleteMessage(message);
