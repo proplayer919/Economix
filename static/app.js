@@ -780,7 +780,7 @@ function refreshGlobalMessages() {
           messageElement.classList.add('message');
 
           let bold = document.createElement('b');
-          bold.innerText = `${(message.type == "admin") ? "🛠️ ADMIN | " : ""}${(message.type == "mod") ? "🛡️ MOD | " : ""} ${message.username}`;
+          bold.innerText = `${(message.type == "admin") ? "🛠️ ADMIN | " : ""}${(message.type == "mod") ? "🛡️ MOD | " : ""}${(message.type == "system") ? "⚙️ SYSTEM | " : ""} ${message.username}`;
 
           messageElement.innerText = ": " + message.message.replace(/\s{2,}/g, ' ');
           messageElement.prepend(bold);

@@ -597,7 +597,7 @@ def get_account():
             {"username": request.username},
             {"$set": {"muted": False, "muted_until": None}},
         )
-        
+
     if "inventory_visibility" not in user:
         users_collection.update_one(
             {"username": request.username},
@@ -904,7 +904,7 @@ def buy_item():
             }
         },
     )
-    
+
     meta_id = item["meta_id"]
     meta = item_meta_collection.find_one({"id": meta_id})
     if meta:
@@ -1366,18 +1366,96 @@ def get_users():
     users = users_collection.find({}, {"_id": 0, "username": 1})
     usernames = [user["username"] for user in users]
     return jsonify({"usernames": usernames})
-  
+
+
 @app.route("/api/delete_message", methods=["POST"])
 @requires_mod
 def delete_message():
     data = request.get_json()
     message = data.get("message")
-    
+
     if not message:
         return jsonify({"error": "Missing message", "code": "missing-parameters"}), 400
 
-    messages_collection.delete_one({"username": message["username"], "message": message["message"], "room": message["room"], "timestamp": message["timestamp"]})
-    
+    messages_collection.delete_one(
+        {
+            "username": message["username"],
+            "message": message["message"],
+            "room": message["room"],
+            "timestamp": message["timestamp"],
+        }
+    )
+
+    return jsonify({"success": True})
+
+
+def _ban_user(username, reason, length):
+    now = time.time()
+    if not length or length.lower() == "perma":
+        # Ban forever
+        end_time = 0
+    else:
+        # Parse duration
+        parts = length.split("+")
+        duration = 0
+        for part in parts:
+            if part[-1].lower() == "s":
+                duration += int(part[:-1])
+            elif part[-1].lower() == "m":
+                duration += 60 * int(part[:-1])
+            elif part[-1].lower() == "h":
+                duration += 60 * 60 * int(part[:-1])
+            elif part[-1].lower() == "d":
+                duration += 60 * 60 * 24 * int(part[:-1])
+            elif part[-1].lower() == "w":
+                duration += 60 * 60 * 24 * 7 * int(part[:-1])
+            elif part[-1].lower() == "y":
+                duration += 60 * 60 * 24 * 365 * int(part[:-1])
+
+        end_time = now + duration
+
+    users_collection.update_one(
+        {"username": username},
+        {
+            "$set": {
+                "banned_until": end_time,
+                "banned": True,
+                "ban_reason": reason or "No reason provided",
+            }
+        },
+    )
+    return jsonify({"success": True})
+
+
+def _mute_user(username, length):
+    now = time.time()
+    if not length or length.lower() == "perma":
+        # Ban forever
+        end_time = 0
+    else:
+        # Parse duration
+        parts = length.split("+")
+        duration = 0
+        for part in parts:
+            if part[-1].lower() == "s":
+                duration += int(part[:-1])
+            elif part[-1].lower() == "m":
+                duration += 60 * int(part[:-1])
+            elif part[-1].lower() == "h":
+                duration += 60 * 60 * int(part[:-1])
+            elif part[-1].lower() == "d":
+                duration += 60 * 60 * 24 * int(part[:-1])
+            elif part[-1].lower() == "w":
+                duration += 60 * 60 * 24 * 7 * int(part[:-1])
+            elif part[-1].lower() == "y":
+                duration += 60 * 60 * 24 * 365 * int(part[:-1])
+
+        end_time = now + duration
+
+    users_collection.update_one(
+        {"username": username},
+        {"$set": {"muted_until": end_time, "muted": True}},
+    )
     return jsonify({"success": True})
 
 
@@ -1385,26 +1463,24 @@ def delete_message():
 @requires_unbanned
 def send_message():
     data = request.get_json()
-    room = data.get("room", "").strip()
-    message = data.get("message", "")
+    room_name = data.get("room", "").strip()
+    message_content = data.get("message", "")
     username = request.username
 
     user = users_collection.find_one({"username": username})
     if user["muted"]:
         return jsonify({"error": "You are muted", "code": "user-muted"}), 400
 
-    if not room or not message:
+    if not room_name or not message_content:
         return (
             jsonify({"error": "Missing room or message", "code": "missing-parameters"}),
             400,
         )
 
-    # Validate room name
-    if not re.match(r"^[a-zA-Z0-9_-]{1,50}$", room):
+    if not re.match(r"^[a-zA-Z0-9_-]{1,50}$", room_name):
         return jsonify({"error": "Invalid room name", "code": "invalid-room"}), 400
 
-    # Sanitize message content
-    sanitized_message = html.escape(message.strip())
+    sanitized_message = html.escape(message_content.strip())
     if len(sanitized_message) == 0:
         return (
             jsonify({"error": "Message cannot be empty", "code": "empty-message"}),
@@ -1413,13 +1489,47 @@ def send_message():
     if len(sanitized_message) > 100:
         return jsonify({"error": "Message too long", "code": "message-too-long"}), 400
 
-    # Ensure room exists
-    if not rooms_collection.find_one({"name": room}):
-        rooms_collection.insert_one({"name": room})
+    if not rooms_collection.find_one({"name": room_name}):
+        rooms_collection.insert_one({"name": room_name})
+
+    if user["type"] == "admin" and sanitized_message.startswith("/"):
+        command_parts = sanitized_message[1:].split(" ")
+        command, *args = command_parts
+
+        if command == "clear_chat":
+            messages_collection.delete_many({"room": room_name})
+        elif command == "delete_many" and len(args) == 1:
+            target_username = args[0]
+            messages_collection.delete_many({"room": room_name, "username": target_username})
+        elif command == "ban" and len(args) >= 3:
+            target_username, duration, *reason_parts = args
+            reason = " ".join(reason_parts)
+            _ban_user(target_username, reason, duration)
+            messages_collection.insert_one(
+                {
+                    "room": room_name,
+                    "username": "System",
+                    "message": f"Banned {target_username} for {reason} ({duration})",
+                    "timestamp": time.time(),
+                    "type": "system",
+                }
+            )
+        elif command == "mute" and len(args) == 2:
+            target_username, duration = args
+            _mute_user(target_username, duration)
+            messages_collection.insert_one(
+                {
+                    "room": room_name,
+                    "username": "System",
+                    "message": f"Muted {target_username} for {duration}",
+                    "timestamp": time.time(),
+                    "type": "system",
+                }
+            )
 
     messages_collection.insert_one(
         {
-            "room": room,
+            "room": room_name,
             "username": username,
             "message": sanitized_message,
             "timestamp": time.time(),
@@ -1474,6 +1584,7 @@ def get_stats():
         }
     )
 
+
 @app.route("/dev/api/get_item_info/<string:item_id>", methods=["GET"])
 def get_item_info(item_id):
     item = items_collection.find_one(
@@ -1483,6 +1594,7 @@ def get_item_info(item_id):
     if not item:
         return jsonify({"error": "Item not found", "code": "item-not-found"}), 404
     return jsonify({"item": item})
+
 
 @app.route("/dev/api/get_item_meta/<string:meta_id>", methods=["GET"])
 def get_item_meta(meta_id):
@@ -1499,7 +1611,14 @@ def get_item_meta(meta_id):
 def get_user_info(username):
     user = users_collection.find_one(
         {"username": username},
-        {"_id": 0, "password_hash": 0, "token": 0, "2fa_enabled": 0, "2fa_secret": 0, "2fa_code": 0},
+        {
+            "_id": 0,
+            "password_hash": 0,
+            "token": 0,
+            "2fa_enabled": 0,
+            "2fa_secret": 0,
+            "2fa_code": 0,
+        },
     )
     if not user:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
