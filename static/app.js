@@ -772,10 +772,8 @@ function refreshGlobalMessages() {
     .then(data => {
       if (data.messages) {
         const globalMessagesContainer = document.getElementById('globalMessages');
-        // Check if the user is at the bottom before updating the messages.
         const wasAtBottom = isUserAtBottom(globalMessagesContainer);
 
-        // Clear the current messages.
         globalMessagesContainer.innerHTML = '';
         data.messages.forEach(message => {
           if (!message.type) message.type = "user";
@@ -783,10 +781,10 @@ function refreshGlobalMessages() {
           const messageElement = document.createElement('div');
           messageElement.classList.add('message');
 
-          let bold = document.createElement('b'); // username holder
+          let bold = document.createElement('b');
           bold.innerText = `${(message.type == "admin") ? "🛠️ ADMIN | " : ""}${(message.type == "mod") ? "🛡️ MOD | " : ""} ${message.username}`;
 
-          messageElement.innerText = ": " + message.message
+          messageElement.innerText = ": " + message.message.replace(/\s{2,}/g, ' ');
           messageElement.prepend(bold);
 
           const deleteMessageElement = document.createElement('a');
@@ -802,7 +800,6 @@ function refreshGlobalMessages() {
           }
         });
 
-        // Auto-scroll only if the user was already at the bottom.
         if (wasAtBottom) {
           scrollToBottom(globalMessagesContainer);
         }
