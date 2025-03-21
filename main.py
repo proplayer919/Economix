@@ -1526,12 +1526,38 @@ def send_message():
                     "type": "system",
                 }
             )
+        elif command == "unban" and len(args) == 1:
+            target_username = args[0]
+            users_collection.update_one(
+                {"username": target_username}, {"$set": {"banned": False}}
+            )
+            messages_collection.insert_one(
+                {
+                    "room": room_name,
+                    "username": "System",
+                    "message": f"Unbanned {target_username}",
+                    "timestamp": time.time(),
+                    "type": "system",
+                }
+            )
+        elif command == "unmute" and len(args) == 1:
+            target_username = args[0]
+            _unmute_user(target_username)
+            messages_collection.insert_one(
+                {
+                    "room": room_name,
+                    "username": "System",
+                    "message": f"Unmuted {target_username}",
+                    "timestamp": time.time(),
+                    "type": "system",
+                }
+            )
         elif command == "help":
             messages_collection.insert_one(
                 {
                     "room": room_name,
                     "username": "System",
-                    "message": "Available commands: /clear_chat, /delete_many <username>, /ban <username> <duration> <reason>, /mute <username> <duration>, /help",
+                    "message": "Available commands: /clear_chat, /delete_many <username>, /ban <username> <duration> <reason>, /mute <username> <duration>, /unban <username>, /unmute <username>, /help",
                     "timestamp": time.time(),
                     "type": "system",
                 }
@@ -1547,6 +1573,12 @@ def send_message():
         }
     )
     return jsonify({"success": True})
+
+
+def _unmute_user(username):
+    users_collection.update_one(
+        {"username": username}, {"$set": {"muted": False, "muted_until": None}}
+    )
 
 
 @app.route("/api/get_messages", methods=["GET"])
