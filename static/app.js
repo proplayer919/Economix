@@ -237,20 +237,24 @@ function refreshAccount() {
       document.getElementById('usernameDisplay').textContent = data.username;
       if (data.type === 'admin') {
         document.getElementById('roleDisplay').innerHTML = `You are an <strong>Admin</strong>`;
-        // Show admin tab button if admin
         document.getElementById('adminDashboardTabButton').style.display = 'inline-block';
+        document.getElementById('modDashboardTabButton').style.display = 'none';
+        if (document.querySelector('.tab.active').getAttribute('data-tab') === 'modDashboard') {
+          switchTab('dashboard');
+        }
       } else if (data.type === 'mod') {
         document.getElementById('roleDisplay').innerHTML = `You are a <strong>Mod</strong>`;
+        document.getElementById('modDashboardTabButton').style.display = 'inline-block';
         document.getElementById('adminDashboardTabButton').style.display = 'none';
-        // If currently in the admin dashboard, switch back to Dashboard
         if (document.querySelector('.tab.active').getAttribute('data-tab') === 'adminDashboard') {
           switchTab('dashboard');
         }
       } else {
         document.getElementById('roleDisplay').innerHTML = `You are a <strong>User</strong>`;
         document.getElementById('adminDashboardTabButton').style.display = 'none';
-        // If currently in the admin dashboard, switch back to Dashboard
-        if (document.querySelector('.tab.active').getAttribute('data-tab') === 'adminDashboard') {
+        document.getElementById('modDashboardTabButton').style.display = 'none';
+        if (document.querySelector('.tab.active').getAttribute('data-tab') === 'adminDashboard' ||
+          document.querySelector('.tab.active').getAttribute('data-tab') === 'modDashboard') {
           switchTab('dashboard');
         }
       }
@@ -741,6 +745,24 @@ function sanitizeHTML(html) {
   return div.textContent || div.innerText || '';
 }
 
+function deleteMessage(message) {
+  if (customConfirm("Are you sure you want to delete this message?")) {
+    fetch('/api/delete_message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ message: message })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          refreshGlobalMessages();
+        } else {
+          customAlert('Error deleting message.');
+        }
+      });
+  }
+}
+
 function refreshGlobalMessages() {
   fetch('/api/get_messages?room=global', {
     method: 'GET',
@@ -767,7 +789,17 @@ function refreshGlobalMessages() {
           messageElement.innerText = ": " + message.message
           messageElement.prepend(bold);
 
+          const deleteMessageElement = document.createElement('a');
+          deleteMessageElement.innerHTML = '🗑️';
+          deleteMessageElement.onclick = () => {
+            deleteMessage(message);
+          }
+
           globalMessagesContainer.appendChild(messageElement);
+
+          if (account.type == "admin" || account.type == "mod") {
+            globalMessagesContainer.appendChild(deleteMessageElement);
+          }
         });
 
         // Auto-scroll only if the user was already at the bottom.
@@ -1216,7 +1248,7 @@ setInterval(() => {
   refreshMarket();
 }, 1000);
 
-// Admin Dashboard event listeners (for the new admin tab)
+// Admin Dashboard event listeners
 document.getElementById('listUsersAdmin').addEventListener('click', listUsers);
 document.getElementById('editTokensAdmin').addEventListener('click', editTokens);
 document.getElementById('editExpAdmin').addEventListener('click', editExp);
@@ -1234,6 +1266,11 @@ document.getElementById('unfreezeUserAdmin').addEventListener('click', unfreezeU
 document.getElementById('muteUserAdmin').addEventListener('click', muteUser);
 document.getElementById('unmuteUserAdmin').addEventListener('click', unmuteUser);
 document.getElementById('fineUserAdmin').addEventListener('click', fineUser);
+
+// Mod Dashboard event listeners
+document.getElementById('listUsersMod').addEventListener('click', listUsers);
+document.getElementById('muteUserMod').addEventListener('click', muteUser);
+document.getElementById('unmuteUserMod').addEventListener('click', unmuteUser);
 
 // Initial data refresh
 getStats();

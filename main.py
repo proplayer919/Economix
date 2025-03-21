@@ -1288,7 +1288,7 @@ def unfreeze_user():
 
 
 @app.route("/api/mute_user", methods=["POST"])
-@requires_admin
+@requires_mod
 def mute_user():
     data = request.get_json()
     username = data.get("username")
@@ -1330,7 +1330,7 @@ def mute_user():
 
 
 @app.route("/api/unmute_user", methods=["POST"])
-@requires_admin
+@requires_mod
 def unmute_user():
     data = request.get_json()
     username = data.get("username")
@@ -1361,11 +1361,24 @@ def fine_user():
 
 
 @app.route("/api/users", methods=["GET"])
-@requires_admin
+@requires_mod
 def get_users():
     users = users_collection.find({}, {"_id": 0, "username": 1})
     usernames = [user["username"] for user in users]
     return jsonify({"usernames": usernames})
+  
+@app.route("/api/delete_message", methods=["POST"])
+@requires_mod
+def delete_message():
+    data = request.get_json()
+    message = data.get("message")
+    
+    if not message:
+        return jsonify({"error": "Missing message", "code": "missing-parameters"}), 400
+
+    messages_collection.delete_one({"username": message["username"], "message": message["message"], "room": message["room"], "timestamp": message["timestamp"]})
+    
+    return jsonify({"success": True})
 
 
 @app.route("/api/send_message", methods=["POST"])

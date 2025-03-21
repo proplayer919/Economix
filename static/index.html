@@ -83,8 +83,9 @@
         <!-- Tab Navigation -->
         <div class="tabs">
           <button class="tab active" data-tab="dashboard">📊 Dashboard</button>
-          <button class="tab" data-tab="adminDashboard" id="adminDashboardTabButton" style="display: none;">📈 Admin
+          <button class="tab" data-tab="adminDashboard" id="adminDashboardTabButton" style="display: none;">🛠️ Admin
             Dashboard</button>
+          <button class="tab" data-tab="modDashboard" id="modDashboardTabButton" style="display: none;">🛡️ Mod Dashboard</button>
           <button class="tab" data-tab="inventory">📦 Inventory</button>
           <button class="tab" data-tab="market">🛒 Market</button>
           <button class="tab" data-tab="chat">💬 Chat</button>
@@ -136,6 +137,21 @@
                 <button class="btn btn-primary" id="unmuteUserAdmin">🔊 Unmute User</button>
                 <button class="btn btn-primary" id="fineUserAdmin">💰 Fine User</button>
               </div>
+            </div>
+          </div>
+
+          <!-- Mod Dashboard Tab -->
+          <div class="tab-content" id="tab-modDashboard">
+            <div class="card">
+              <div class="card-header">
+                <h2>Mod Dashboard</h2>
+              </div>
+              <div class="actions">
+                <button class="btn btn-primary" id="listUsersMod">👥 List Users</button>
+                <button class="btn btn-primary" id="muteUserMod">🔇 Mute User</button>
+                <button class="btn btn-primary" id="unmuteUserMod">🔊 Unmute User</button>
+              </div>
+              <p>Some actions (e.g. ban) are only available to admins, please contact one to use them.</p>
             </div>
           </div>
 
