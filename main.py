@@ -1492,76 +1492,39 @@ def send_message():
     if not rooms_collection.find_one({"name": room_name}):
         rooms_collection.insert_one({"name": room_name})
 
+    system_message = None
     if user["type"] == "admin" and sanitized_message.startswith("/"):
         command_parts = sanitized_message[1:].split(" ")
         command, *args = command_parts
 
         if command == "clear_chat":
             messages_collection.delete_many({"room": room_name})
+            system_message = f"Banned {username} for {sanitized_message[1:]} ({room_name})"
         elif command == "delete_many" and len(args) == 1:
             target_username = args[0]
             messages_collection.delete_many({"room": room_name, "username": target_username})
+            system_message = f"Deleted messages from {target_username} in {room_name}"
         elif command == "ban" and len(args) >= 3:
             target_username, duration, *reason_parts = args
             reason = " ".join(reason_parts)
             _ban_user(target_username, reason, duration)
-            messages_collection.insert_one(
-                {
-                    "room": room_name,
-                    "username": "System",
-                    "message": f"Banned {target_username} for {reason} ({duration})",
-                    "timestamp": time.time(),
-                    "type": "system",
-                }
-            )
+            system_message = f"Banned {target_username} for {reason} ({duration})"
         elif command == "mute" and len(args) == 2:
             target_username, duration = args
             _mute_user(target_username, duration)
-            messages_collection.insert_one(
-                {
-                    "room": room_name,
-                    "username": "System",
-                    "message": f"Muted {target_username} for {duration}",
-                    "timestamp": time.time(),
-                    "type": "system",
-                }
-            )
+            system_message = f"Muted {target_username} for {duration}"
         elif command == "unban" and len(args) == 1:
             target_username = args[0]
             users_collection.update_one(
                 {"username": target_username}, {"$set": {"banned": False}}
             )
-            messages_collection.insert_one(
-                {
-                    "room": room_name,
-                    "username": "System",
-                    "message": f"Unbanned {target_username}",
-                    "timestamp": time.time(),
-                    "type": "system",
-                }
-            )
+            system_message = f"Unbanned {target_username}"
         elif command == "unmute" and len(args) == 1:
             target_username = args[0]
             _unmute_user(target_username)
-            messages_collection.insert_one(
-                {
-                    "room": room_name,
-                    "username": "System",
-                    "message": f"Unmuted {target_username}",
-                    "timestamp": time.time(),
-                    "type": "system",
-                }
-            )
+            system_message = f"Unmuted {target_username}"
         elif command == "help":
-            messages_collection.insert_one(
-                {
-                    "room": room_name,
-                    "username": "System",
-                    "message": "Available commands: /clear_chat, /delete_many <username>, /ban <username> <duration> <reason>, /mute <username> <duration>, /unban <username>, /unmute <username>, /help",
-                    "timestamp": time.time(),
-                    "type": "system",
-                }
-            )
+            system_message = "Available commands: /clear_chat, /delete_many <username>, /ban <username> <duration> <reason>, /mute <username> <duration>, /unban <username>, /unmute <username>, /help"
 
     messages_collection.insert_one(
         {
@@ -1572,6 +1535,17 @@ def send_message():
             "type": user["type"],
         }
     )
+
+    if system_message:
+        messages_collection.insert_one(
+            {
+                "room": room_name,
+                "username": "System",
+                "message": system_message,
+                "timestamp": time.time(),
+                "type": "system",
+            }
+        )
     return jsonify({"success": True})
 
 
