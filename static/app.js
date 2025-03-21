@@ -4,7 +4,7 @@ let marketPage = 1;
 const itemsPerPage = 5;
 
 const ITEM_CREATE_COOLDOWN = 60;
-const TOKEN_MINE_COOLDOWN = 600;
+const TOKEN_MINE_COOLDOWN = 120;
 
 let items = [];
 let account = {};
