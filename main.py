@@ -1552,8 +1552,16 @@ def send_message():
                         "type": sudo_user["type"],
                     }
                 )
+        elif command == "list_banned":
+            banned_users = users_collection.find({"banned": True})
+            banned_users_list = "\n".join([f"{user['username']} - {user['ban_reason']}" for user in banned_users])
+            system_message = "Banned users:\n" + banned_users_list
+        elif command == "list_frozen":
+            frozen_users = users_collection.find({"frozen": True})
+            frozen_users_list = "\n".join([user["username"] for user in frozen_users])
+            system_message = "Frozen users:\n" + frozen_users_list
         elif command == "help":
-            system_message = "Available commands: /clear_chat, /clear_user <username>, /delete_many <amount>, /ban <username> <duration> <reason>, /mute <username> <duration>, /unban <username>, /unmute <username>, /sudo <username> <message>, /help"
+            system_message = "Available commands: /clear_chat, /clear_user <username>, /delete_many <amount>, /ban <username> <duration> <reason>, /mute <username> <duration>, /unban <username>, /unmute <username>, /sudo <username> <message>, /list_banned, /list_frozen, /help"
     else:
         messages_collection.insert_one(
             {
