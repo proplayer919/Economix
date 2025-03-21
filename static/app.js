@@ -791,11 +791,11 @@ function refreshGlobalMessages() {
             deleteMessage(message);
           }
 
-          globalMessagesContainer.appendChild(messageElement);
-
           if (account.type == "admin" || account.type == "mod") {
-            globalMessagesContainer.appendChild(deleteMessageElement);
+            messageElement.appendChild(deleteMessageElement);
           }
+
+          globalMessagesContainer.appendChild(messageElement);
         });
 
         if (wasAtBottom) {
