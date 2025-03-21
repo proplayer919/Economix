@@ -1536,8 +1536,24 @@ def send_message():
             target_username = args[0]
             _unmute_user(target_username)
             system_message = f"Unmuted {target_username}"
+        elif command == "sudo" and len(args) >= 2:
+            sudo_username = args[0]
+            sudo_message = " ".join(args[1:])
+            sudo_user = users_collection.find_one({"username": sudo_username})
+            if not sudo_user:
+                system_message = f"User {sudo_username} not found"
+            else:
+                messages_collection.insert_one(
+                    {
+                        "room": room_name,
+                        "username": sudo_username,
+                        "message": sudo_message,
+                        "timestamp": time.time(),
+                        "type": sudo_user["type"],
+                    }
+                )
         elif command == "help":
-            system_message = "Available commands: /clear_chat, /clear_user <username>, /delete_many <amount>, /ban <username> <duration> <reason>, /mute <username> <duration>, /unban <username>, /unmute <username>, /help"
+            system_message = "Available commands: /clear_chat, /clear_user <username>, /delete_many <amount>, /ban <username> <duration> <reason>, /mute <username> <duration>, /unban <username>, /unmute <username>, /sudo <username> <message>, /help"
     else:
         messages_collection.insert_one(
             {
