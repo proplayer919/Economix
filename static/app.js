@@ -756,11 +756,13 @@ function refreshGlobalMessages() {
         // Clear the current messages.
         globalMessagesContainer.innerHTML = '';
         data.messages.forEach(message => {
+          if (!message.type) message.type = "user";
+
           const messageElement = document.createElement('div');
           messageElement.classList.add('message');
 
-          let bold = document.createElement('B'); // username holder
-          bold.innerText = message.username;
+          let bold = document.createElement('b'); // username holder
+          bold.innerText = `${(message.type == "admin") ? "🛠️ ADMIN | " : ""}${(message.type == "mod") ? "🛡️ MOD | " : ""} ${message.username}`;
 
           messageElement.innerText = ": " + message.message
           messageElement.prepend(bold);

@@ -1410,6 +1410,7 @@ def send_message():
             "username": username,
             "message": sanitized_message,
             "timestamp": time.time(),
+            "type": user["type"],
         }
     )
     return jsonify({"success": True})
