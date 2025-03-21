@@ -403,7 +403,7 @@ def register():
                 "items": [],
                 "token": None,
                 "banned_until": None,
-                "banned_reason": None,
+                "ban_reason": None,
                 "banned": False,
                 "frozen": False,
                 "muted": False,
@@ -568,12 +568,12 @@ def get_account():
 
     if (
         "banned_until" not in user
-        or "banned_reason" not in user
+        or "ban_reason" not in user
         or "banned" not in user
     ):
         users_collection.update_one(
             {"username": request.username},
-            {"$set": {"banned_until": None, "banned_reason": None, "banned": False}},
+            {"$set": {"banned_until": None, "ban_reason": None, "banned": False}},
         )
 
     if "history" not in user:
@@ -609,7 +609,7 @@ def get_account():
     ):
         users_collection.update_one(
             {"username": request.username},
-            {"$set": {"banned_until": None, "banned_reason": None}},
+            {"$set": {"banned_until": None, "ban_reason": None}},
         )
 
     if user.get("muted_until", None) and (
@@ -636,7 +636,7 @@ def get_account():
             "last_item_time": user["last_item_time"],
             "last_mine_time": user["last_mine_time"],
             "banned_until": user.get("banned_until"),
-            "banned_reason": user.get("banned_reason"),
+            "ban_reason": user.get("ban_reason"),
             "banned": user.get("banned"),
             "frozen": user.get("frozen"),
             "muted": user.get("muted"),
@@ -1237,7 +1237,7 @@ def ban_user():
 
     users_collection.update_one(
         {"username": username},
-        {"$set": {"banned_until": end_time, "banned_reason": reason, "banned": True}},
+        {"$set": {"banned_until": end_time, "ban_reason": reason, "banned": True}},
     )
     return jsonify({"success": True})
 
@@ -1254,7 +1254,7 @@ def unban_user():
 
     users_collection.update_one(
         {"username": username},
-        {"$set": {"banned_until": None, "banned_reason": None, "banned": False}},
+        {"$set": {"banned_until": None, "ban_reason": None, "banned": False}},
     )
     return jsonify({"success": True})
 
