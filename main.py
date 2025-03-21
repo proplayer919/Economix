@@ -1410,8 +1410,8 @@ def send_message():
             jsonify({"error": "Message cannot be empty", "code": "empty-message"}),
             400,
         )
-    if len(sanitized_message) > 500:
-        sanitized_message = sanitized_message[:500]
+    if len(sanitized_message) > 100:
+        return jsonify({"error": "Message too long", "code": "message-too-long"}), 400
 
     # Ensure room exists
     if not rooms_collection.find_one({"name": room}):
