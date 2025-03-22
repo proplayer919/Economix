@@ -131,6 +131,10 @@ function switchTab(tabName) {
     isChatFocused = false;
   }
 
+  if (tabName === 'chat' && socket) {
+    socket.emit('join_room', { room: activeChatTab });
+  }
+
   // Remove active class from all tabs and hide all content
   document.querySelectorAll('.tab').forEach(btn => {
     btn.classList.remove('active');
@@ -861,21 +865,13 @@ function deleteItem(item_id) {
 function sendGlobalMessage() {
   const message = document.getElementById('messageInput').value;
   if (!message) return;
-
-  fetch('/api/send_message', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-    body: JSON.stringify({ room: 'global', message: message })
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        document.getElementById('messageInput').value = '';
-        refreshGlobalMessages();
-      } else {
-        customAlert('Error sending message.');
-      }
+  if (socket) {
+    socket.emit('send_message', {
+      room: activeChatTab,
+      message: message
     });
+  }
+  document.getElementById('messageInput').value = '';
 }
 
 function sanitizeHTML(html) {
@@ -896,41 +892,6 @@ function deleteMessage(messageId) {
         refreshGlobalMessages();
       } else {
         customAlert('Error deleting message.');
-      }
-    });
-}
-
-function refreshGlobalMessages() {
-  fetch('/api/get_messages?room=global', {
-    method: 'GET',
-    headers: { 'Authorization': `Bearer ${token}` }
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (data.messages) {
-        const globalMessagesContainer = document.getElementById('globalMessages');
-        const wasAtBottom = isUserAtBottom(globalMessagesContainer);
-
-        // Filter out duplicates using message IDs
-        const newMessages = data.messages.filter(message =>
-          !messages.some(m => m.id === message.id)
-        );
-
-        // Add new messages and truncate the array to last 500
-        messages.push(...newMessages);
-        const MAX_MESSAGES = 500;
-        if (messages.length > MAX_MESSAGES) {
-          messages = messages.slice(-MAX_MESSAGES);
-        }
-
-        // Append new messages to DOM and trim old ones
-        newMessages.forEach(message => {
-          handleNewMessage(message);
-        });
-
-        if (wasAtBottom) {
-          scrollToBottom(globalMessagesContainer);
-        }
       }
     });
 }
@@ -1436,7 +1397,6 @@ setInterval(() => {
   if (!token) return;
   getStats();
   refreshAccount();
-  refreshGlobalMessages();
   refreshLeaderboard();
   refreshMarket();
 }, 1000);
@@ -1469,6 +1429,23 @@ document.getElementById('unmuteUserMod').addEventListener('click', unmuteUser);
 getStats();
 
 if (token) {
+  socket = io({
+    query: { token }
+  });
+
+  socket.on('new_message', (message) => {
+    handleNewMessage(message);
+  });
+
+  socket.on('room_history', (data) => {
+    data.messages.forEach(message => {
+      if (!messages.some(m => m.id === message.id)) {
+        messages.push(message);
+        appendMessage(message);
+      }
+    });
+  });
+
   showMainContent();
   refreshAccount();
 }
