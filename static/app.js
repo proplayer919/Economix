@@ -1469,6 +1469,7 @@ document.getElementById('2faSetupCancel').addEventListener('click', () => {
 setInterval(() => {
   if (!token) return;
   getStats();
+  refreshBanner();
   refreshAccount();
   refreshGlobalMessages();
   refreshLeaderboard();
