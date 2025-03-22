@@ -1582,17 +1582,17 @@ def send_message():
                 system_message = "Frozen users:\n" + frozen_users_list
         elif command == "help":
             system_message = "Available commands: /clear_chat, /clear_user <username>, /delete_many <amount>, /ban <username> <duration> <reason>, /mute <username> <duration>, /unban <username>, /unmute <username>, /sudo <username> <message>, /list_banned, /list_frozen, /help"
-
-    messages_collection.insert_one(
-        {
-            "id": str(uuid4()),
-            "room": room_name,
-            "username": username,
-            "message": sanitized_message,
-            "timestamp": time.time(),
-            "type": user["type"],
-        }
-    )
+    else:
+        messages_collection.insert_one(
+            {
+                "id": str(uuid4()),
+                "room": room_name,
+                "username": username,
+                "message": sanitized_message,
+                "timestamp": time.time(),
+                "type": user["type"],
+            }
+        )
 
     if system_message:
         messages_collection.insert_one(
