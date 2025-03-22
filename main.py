@@ -1559,7 +1559,7 @@ def send_message():
         elif command == "list_banned":
             banned_users = users_collection.find({"banned": True})
 
-            if len(banned_users) == 0:
+            if len(list(banned_users)) == 0:
                 system_message = "Nobody is banned."
             else:
                 banned_users_list = "\n".join(
@@ -1572,7 +1572,7 @@ def send_message():
         elif command == "list_frozen":
             frozen_users = users_collection.find({"frozen": True})
 
-            if len(frozen_users) == 0:
+            if len(list(frozen_users)) == 0:
                 system_message = "Nobody is frozen."
             else:
                 frozen_users_list = "\n".join(
