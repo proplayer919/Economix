@@ -911,7 +911,10 @@ function refreshGlobalMessages() {
         const globalMessagesContainer = document.getElementById('globalMessages');
         const wasAtBottom = isUserAtBottom(globalMessagesContainer);
 
-        if (data.messages === messages) return;
+        if (data.messages === messages) {
+          console.log('No new messages');
+          return;
+        }
 
         // Clear existing messages
         globalMessagesContainer.innerHTML = '';
