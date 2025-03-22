@@ -951,7 +951,7 @@ function appendMessage(message) {
     </div>
     <div class="message-content">${sanitizeHTML(message.message)}</div>
     ${account.type === 'admin' || account.type === 'mod' ?
-      `<button class="delete-message" onclick="deleteMessage('${message}')">🗑️</button>` : ''}
+      `<button class="delete-message" onclick="deleteMessage(${message})">🗑️</button>` : ''}
   `;
 
   messagesContainer.appendChild(messageEl);
