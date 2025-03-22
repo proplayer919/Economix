@@ -85,7 +85,8 @@
           <button class="tab active" data-tab="dashboard">📊 Dashboard</button>
           <button class="tab" data-tab="adminDashboard" id="adminDashboardTabButton" style="display: none;">🛠️ Admin
             Dashboard</button>
-          <button class="tab" data-tab="modDashboard" id="modDashboardTabButton" style="display: none;">🛡️ Mod Dashboard</button>
+          <button class="tab" data-tab="modDashboard" id="modDashboardTabButton" style="display: none;">🛡️ Mod
+            Dashboard</button>
           <button class="tab" data-tab="inventory">📦 Inventory</button>
           <button class="tab" data-tab="market">🛒 Market</button>
           <button class="tab" data-tab="chat">💬 Chat</button>
@@ -160,6 +161,23 @@
             <div class="card">
               <div class="card-header">
                 <h2>My Items</h2>
+                <div class="filters">
+                  <input type="text" id="inventorySearch" placeholder="Search items..."
+                    oninput="applyInventoryFilters()">
+                  <select id="inventoryRarityFilter" onchange="applyInventoryFilters()">
+                    <option value="">All Rarities</option>
+                    <option>Common</option>
+                    <option>Uncommon</option>
+                    <option>Rare</option>
+                    <option>Epic</option>
+                    <option>Legendary</option>
+                  </select>
+                  <select id="inventorySaleFilter" onchange="applyInventoryFilters()">
+                    <option value="all">All Items</option>
+                    <option value="forsale">For Sale</option>
+                    <option value="notforsale">Not For Sale</option>
+                  </select>
+                </div>
               </div>
               <ul class="item-list" id="itemsList"></ul>
               <div id="inventoryPagination" style="margin-top: 10px; text-align: center;"></div>
@@ -171,6 +189,21 @@
             <div class="card">
               <div class="card-header">
                 <h2>Marketplace</h2>
+                <div class="filters">
+                  <input type="text" id="marketSearch" placeholder="Search items..." oninput="applyMarketFilters()">
+                  <select id="marketRarityFilter" onchange="applyMarketFilters()">
+                    <option value="">All Rarities</option>
+                    <option>Common</option>
+                    <option>Uncommon</option>
+                    <option>Rare</option>
+                    <option>Epic</option>
+                    <option>Legendary</option>
+                  </select>
+                  <input type="number" id="marketPriceMin" placeholder="Min price" oninput="applyMarketFilters()">
+                  <input type="number" id="marketPriceMax" placeholder="Max price" oninput="applyMarketFilters()">
+                  <input type="text" id="marketSellerFilter" placeholder="Seller username"
+                    oninput="applyMarketFilters()">
+                </div>
               </div>
               <ul class="item-list" id="marketList"></ul>
               <div id="marketplacePagination" style="margin-top: 10px; text-align: center;"></div>

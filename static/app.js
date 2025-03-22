@@ -11,6 +11,17 @@ let account = {};
 let token = localStorage.getItem('token');
 let activeChatTab = 'global';
 
+let inventorySearchQuery = '';
+let inventoryRarityFilter = '';
+let inventorySaleFilter = 'all';
+
+let marketSearchQuery = '';
+let marketRarityFilter = '';
+let marketPriceMin = '';
+let marketPriceMax = '';
+let marketSellerFilter = '';
+let marketItems = [];
+
 // Custom modal functions
 function customAlert(message) {
   console.log(message);
@@ -282,6 +293,51 @@ function refreshAccount() {
     });
 }
 
+function applyInventoryFilters() {
+  inventoryPage = 1;
+  inventorySearchQuery = document.getElementById('inventorySearch').value.toLowerCase();
+  inventoryRarityFilter = document.getElementById('inventoryRarityFilter').value;
+  inventorySaleFilter = document.getElementById('inventorySaleFilter').value;
+
+  const filtered = items.filter(item => {
+    const fullName = `${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number}`.toLowerCase();
+    const matchesSearch = fullName.includes(inventorySearchQuery);
+    const matchesRarity = !inventoryRarityFilter || item.rarity === inventoryRarityFilter;
+    let matchesSale = true;
+    if (inventorySaleFilter === 'forsale') {
+      matchesSale = item.for_sale;
+    } else if (inventorySaleFilter === 'notforsale') {
+      matchesSale = !item.for_sale;
+    }
+    return matchesSearch && matchesRarity && matchesSale;
+  });
+
+  renderInventory(filtered);
+}
+
+function applyMarketFilters() {
+  marketPage = 1;
+  marketSearchQuery = document.getElementById('marketSearch').value.toLowerCase();
+  marketRarityFilter = document.getElementById('marketRarityFilter').value;
+  marketPriceMin = document.getElementById('marketPriceMin').value;
+  marketPriceMax = document.getElementById('marketPriceMax').value;
+  marketSellerFilter = document.getElementById('marketSellerFilter').value.toLowerCase();
+
+  const filtered = marketItems.filter(item => {
+    const fullName = `${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number}`.toLowerCase();
+    const matchesSearch = fullName.includes(marketSearchQuery);
+    const matchesRarity = !marketRarityFilter || item.rarity === marketRarityFilter;
+    const price = item.price;
+    const min = marketPriceMin ? Number(marketPriceMin) : -Infinity;
+    const max = marketPriceMax ? Number(marketPriceMax) : Infinity;
+    const matchesPrice = price >= min && price <= max;
+    const matchesSeller = !marketSellerFilter || item.owner.toLowerCase().includes(marketSellerFilter);
+    return matchesSearch && matchesRarity && matchesPrice && matchesSeller;
+  });
+
+  renderMarketplace(filtered);
+}
+
 function refreshMarket() {
   const token = localStorage.getItem('token');
   fetch('/api/market', {
@@ -289,10 +345,8 @@ function refreshMarket() {
   })
     .then(res => res.json())
     .then(data => {
-      if ((marketPage - 1) * itemsPerPage >= data.length) {
-        marketPage = 1;
-      }
-      renderMarketplace(data);
+      marketItems = data;
+      applyMarketFilters();
     });
 }
 
@@ -306,47 +360,68 @@ function renderInventory(inventoryItems) {
 
   pagedItems.forEach(item => {
     const li = document.createElement('li');
-    li.textContent = `${item.name.icon} ${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number} (${item.rarity} ${item.level}) ${item.for_sale ? `(For Sale for ${item.price} tokens)` : ""}`;
+    li.className = 'item-entry';
+    li.innerHTML = `
+      <span class="item-info">
+        ${item.name.icon} 
+        ${item.name.adjective} 
+        ${item.name.material} 
+        ${item.name.noun} 
+        ${item.name.suffix} #${item.name.number}
+        <span class="item-meta">(${item.rarity} Lv.${item.level})</span>
+        ${item.for_sale ? `<span class="sale-indicator">🟢 ${item.price} tokens</span>` : ''}
+      </span>
+    `;
 
+    // Action buttons container
+    const btnContainer = document.createElement('div');
+    btnContainer.className = 'item-actions';
+
+    // Sell/Cancel Sale button
     const sellBtn = document.createElement('button');
-    sellBtn.classList.add('btn', 'btn-secondary');
-    sellBtn.textContent = item.for_sale ? 'Cancel Sale' : 'Sell';
-    sellBtn.onclick = item.for_sale ? () => cancelSale(item.id) : () => sellItem(item.id);
+    sellBtn.className = `btn ${item.for_sale ? 'btn-warning' : 'btn-secondary'}`;
+    sellBtn.innerHTML = item.for_sale ? '🚫 Cancel' : '💰 Sell';
+    sellBtn.onclick = item.for_sale
+      ? () => cancelSale(item.id)
+      : () => sellItem(item.id);
 
+    // View Secret button
     const viewSecretBtn = document.createElement('button');
-    viewSecretBtn.classList.add('btn', 'btn-danger');
-    viewSecretBtn.textContent = 'View Secret';
+    viewSecretBtn.className = 'btn btn-danger';
+    viewSecretBtn.innerHTML = '🕵️ Secret';
     viewSecretBtn.onclick = () => viewSecret(item.id);
 
-    li.appendChild(sellBtn);
-    li.appendChild(viewSecretBtn);
+    btnContainer.appendChild(sellBtn);
+    btnContainer.appendChild(viewSecretBtn);
 
+    // Admin controls
     if (account.type === 'admin') {
       const editBtn = document.createElement('button');
-      editBtn.classList.add('btn', 'btn-primary');
-      editBtn.textContent = 'Edit (Admin)';
+      editBtn.className = 'btn btn-admin';
+      editBtn.innerHTML = '✏️ Edit';
       editBtn.onclick = () => editItem(item.id);
 
       const deleteBtn = document.createElement('button');
-      deleteBtn.classList.add('btn', 'btn-danger');
-      deleteBtn.textContent = 'Delete (Admin)';
+      deleteBtn.className = 'btn btn-admin-danger';
+      deleteBtn.innerHTML = '🗑️ Delete';
       deleteBtn.onclick = () => deleteItem(item.id);
 
-      li.appendChild(editBtn);
-      li.appendChild(deleteBtn);
+      btnContainer.appendChild(editBtn);
+      btnContainer.appendChild(deleteBtn);
     }
 
+    li.appendChild(btnContainer);
     itemsList.appendChild(li);
   });
 
-  // Update pagination controls for inventory
+  // Pagination controls
   const paginationContainer = document.getElementById('inventoryPagination');
   paginationContainer.innerHTML = '';
   const totalPages = Math.ceil(inventoryItems.length / itemsPerPage);
 
   const prevBtn = document.createElement('button');
-  prevBtn.textContent = 'Prev';
-  prevBtn.classList.add('btn', 'btn-primary');
+  prevBtn.className = 'btn btn-pagination';
+  prevBtn.innerHTML = '◀ Previous';
   prevBtn.disabled = inventoryPage === 1;
   prevBtn.onclick = () => {
     if (inventoryPage > 1) {
@@ -356,8 +431,8 @@ function renderInventory(inventoryItems) {
   };
 
   const nextBtn = document.createElement('button');
-  nextBtn.textContent = 'Next';
-  nextBtn.classList.add('btn', 'btn-primary');
+  nextBtn.className = 'btn btn-pagination';
+  nextBtn.innerHTML = 'Next ▶';
   nextBtn.disabled = inventoryPage >= totalPages;
   nextBtn.onclick = () => {
     if (inventoryPage < totalPages) {
@@ -367,7 +442,12 @@ function renderInventory(inventoryItems) {
   };
 
   const pageInfo = document.createElement('span');
-  pageInfo.textContent = ` Page ${inventoryPage} of ${totalPages} `;
+  pageInfo.className = 'pagination-info';
+  pageInfo.innerHTML = `
+    Page <strong>${inventoryPage}</strong> 
+    of <strong>${totalPages}</strong> 
+    (${inventoryItems.length} items total)
+  `;
 
   paginationContainer.appendChild(prevBtn);
   paginationContainer.appendChild(pageInfo);
@@ -384,25 +464,50 @@ function renderMarketplace(marketItems) {
 
   pagedItems.forEach(item => {
     const li = document.createElement('li');
-    li.textContent = `${item.name.icon} ${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number} (${item.rarity} ${item.level}) - Price: ${item.price} tokens - Sold by: ${item.owner}`;
+    li.className = 'market-item';
+    li.innerHTML = `
+      <div class="item-header">
+        <span class="item-icon">${item.name.icon}</span>
+        <span class="item-name">
+          ${item.name.adjective} 
+          ${item.name.material} 
+          ${item.name.noun} 
+          ${item.name.suffix} #${item.name.number}
+        </span>
+        <span class="item-rarity ${item.rarity.toLowerCase()}">
+          ${item.rarity}
+        </span>
+      </div>
+      <div class="item-details">
+        <span class="item-level">Level ${item.level}</span>
+        <span class="item-price">💰 ${item.price} tokens</span>
+        <span class="item-seller">👤 ${item.owner}</span>
+      </div>
+    `;
+
     if (item.owner !== account.username) {
       const buyBtn = document.createElement('button');
-      buyBtn.classList.add('btn', 'btn-primary');
-      buyBtn.textContent = 'Buy';
+      buyBtn.className = 'btn btn-buy';
+      buyBtn.innerHTML = '🛒 Purchase';
       buyBtn.onclick = () => buyItem(item.id);
-      li.appendChild(buyBtn);
+
+      const btnContainer = document.createElement('div');
+      btnContainer.className = 'market-actions';
+      btnContainer.appendChild(buyBtn);
+      li.appendChild(btnContainer);
     }
+
     marketList.appendChild(li);
   });
 
-  // Update pagination controls for marketplace
+  // Pagination controls
   const paginationContainer = document.getElementById('marketplacePagination');
   paginationContainer.innerHTML = '';
   const totalPages = Math.ceil(marketItems.length / itemsPerPage);
 
   const prevBtn = document.createElement('button');
-  prevBtn.textContent = 'Prev';
-  prevBtn.classList.add('btn', 'btn-primary');
+  prevBtn.className = 'btn btn-pagination';
+  prevBtn.innerHTML = '◀ Previous';
   prevBtn.disabled = marketPage === 1;
   prevBtn.onclick = () => {
     if (marketPage > 1) {
@@ -412,8 +517,8 @@ function renderMarketplace(marketItems) {
   };
 
   const nextBtn = document.createElement('button');
-  nextBtn.textContent = 'Next';
-  nextBtn.classList.add('btn', 'btn-primary');
+  nextBtn.className = 'btn btn-pagination';
+  nextBtn.innerHTML = 'Next ▶';
   nextBtn.disabled = marketPage >= totalPages;
   nextBtn.onclick = () => {
     if (marketPage < totalPages) {
@@ -423,7 +528,12 @@ function renderMarketplace(marketItems) {
   };
 
   const pageInfo = document.createElement('span');
-  pageInfo.textContent = ` Page ${marketPage} of ${totalPages} `;
+  pageInfo.className = 'pagination-info';
+  pageInfo.innerHTML = `
+    Page <strong>${marketPage}</strong> 
+    of <strong>${totalPages}</strong> 
+    (Showing ${pagedItems.length} of ${marketItems.length} listings)
+  `;
 
   paginationContainer.appendChild(prevBtn);
   paginationContainer.appendChild(pageInfo);
