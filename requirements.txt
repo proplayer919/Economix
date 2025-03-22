@@ -6,3 +6,4 @@ gunicorn
 pyotp
 qrcode
 pillow
+profanity-filter
