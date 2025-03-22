@@ -911,20 +911,18 @@ function refreshGlobalMessages() {
         const globalMessagesContainer = document.getElementById('globalMessages');
         const wasAtBottom = isUserAtBottom(globalMessagesContainer);
 
-        // Filter out duplicates using message IDs
-        const newMessages = data.messages.filter(message =>
-          !messages.some(m => m.id === message.id)
-        );
+        // Clear existing messages
+        globalMessagesContainer.innerHTML = '';
 
         // Add new messages and truncate the array to last 500
-        messages.push(...newMessages);
+        messages.push(data.messages);
         const MAX_MESSAGES = 500;
         if (messages.length > MAX_MESSAGES) {
           messages = messages.slice(-MAX_MESSAGES);
         }
 
         // Append new messages to DOM and trim old ones
-        newMessages.forEach(message => {
+        data.messages.forEach(message => {
           handleNewMessage(message);
         });
 
@@ -945,7 +943,7 @@ function appendMessage(message) {
   messageEl.className = `message ${messageType} ${isOwnMessage ? 'own-message' : ''}`;
   messageEl.innerHTML = `
     <div class="message-header">
-      <span class="message-sender ${messageType}">
+      <span class="message-sender ${messageType}" title="${messageType.charAt(0).toUpperCase() + messageType.slice(1)}">
         ${messageType === 'system' ? '⚙️' : ''}
         ${messageType === 'admin' ? '🛠️' : ''}
         ${messageType === 'mod' ? '🛡️' : ''}
