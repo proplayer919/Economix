@@ -926,7 +926,7 @@ function refreshGlobalMessages() {
 
         console.debug(globalMessages);
 
-        if (data.messages === globalMessages) {
+        if (data.messages.length === globalMessages.length) {
           console.log('No new messages');
           return;
         }
