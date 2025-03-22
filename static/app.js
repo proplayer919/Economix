@@ -309,7 +309,7 @@ function applyInventoryFilters(items) {
   const filtered = items.filter(item => {
     const fullName = `${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number}`.toLowerCase();
     const matchesSearch = fullName.includes(inventorySearchQuery);
-    const matchesRarity = !inventoryRarityFilter || item.rarity === inventoryRarityFilter;
+    const matchesRarity = !inventoryRarityFilter || item.level === inventoryRarityFilter;
     let matchesSale = true;
     if (inventorySaleFilter === 'forsale') {
       matchesSale = item.for_sale;
@@ -342,7 +342,7 @@ function applyMarketFilters(items) {
   const filtered = items.filter(item => {
     const fullName = `${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number}`.toLowerCase();
     const matchesSearch = fullName.includes(marketSearchQuery);
-    const matchesRarity = !marketRarityFilter || item.rarity === marketRarityFilter;
+    const matchesRarity = !marketRarityFilter || item.level === marketRarityFilter;
     const price = item.price;
     const min = marketPriceMin ? Number(marketPriceMin) : -Infinity;
     const max = marketPriceMax ? Number(marketPriceMax) : Infinity;
