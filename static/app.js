@@ -385,7 +385,7 @@ function renderInventory(inventoryItems) {
         ${item.name.noun} 
         ${item.name.suffix} #${item.name.number}
         <span class="item-meta">(${item.rarity} Lv.${item.level})</span>
-        ${item.for_sale ? `<span class="sale-indicator">🟢 ${item.price} tokens</span>` : ''}
+        ${item.for_sale ? `<span class="sale-indicator">💰 Selling for ${item.price} tokens</span>` : ''}
       </span>
     `;
 
