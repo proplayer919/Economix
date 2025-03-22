@@ -603,7 +603,7 @@ def get_account():
             {"username": request.username},
             {"$set": {"inventory_visibility": "private"}},
         )
-        
+
     if "2fa_enabled" not in user:
         users_collection.update_one(
             {"username": request.username}, {"$set": {"2fa_enabled": False}}
@@ -1377,19 +1377,15 @@ def get_users():
 @requires_mod
 def delete_message():
     data = request.get_json()
-    message = data.get("message")
+    message_id = data.get("message_id")
 
-    if not message:
-        return jsonify({"error": "Missing message", "code": "missing-parameters"}), 400
+    if not message_id:
+        return (
+            jsonify({"error": "Missing message_id", "code": "missing-parameters"}),
+            400,
+        )
 
-    messages_collection.delete_one(
-        {
-            "username": message["username"],
-            "message": message["message"],
-            "room": message["room"],
-            "timestamp": message["timestamp"],
-        }
-    )
+    messages_collection.delete_one({"message_id": message_id})
 
     return jsonify({"success": True})
 
@@ -1589,6 +1585,7 @@ def send_message():
     else:
         messages_collection.insert_one(
             {
+                "id": str(uuid4()),
                 "room": room_name,
                 "username": username,
                 "message": sanitized_message,
@@ -1600,6 +1597,7 @@ def send_message():
     if system_message:
         messages_collection.insert_one(
             {
+                "id": str(uuid4()),
                 "room": room_name,
                 "username": "Command Handler",
                 "message": system_message,

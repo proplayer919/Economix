@@ -884,11 +884,11 @@ function sanitizeHTML(html) {
   return div.textContent || div.innerText || '';
 }
 
-function deleteMessage(message) {
+function deleteMessage(messageId) {
   fetch('/api/delete_message', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-    body: JSON.stringify({ message: message })
+    body: JSON.stringify({ message_id: messageId })
   })
     .then(res => res.json())
     .then(data => {
@@ -951,7 +951,7 @@ function appendMessage(message) {
     </div>
     <div class="message-content">${sanitizeHTML(message.message)}</div>
     ${account.type === 'admin' || account.type === 'mod' ?
-      `<button class="delete-message" onclick="deleteMessage(${message})">🗑️</button>` : ''}
+      `<button class="delete-message" onclick="deleteMessage(${message.id})">🗑️</button>` : ''}
   `;
 
   messagesContainer.appendChild(messageEl);
