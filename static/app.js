@@ -294,10 +294,17 @@ function refreshAccount() {
 }
 
 function applyInventoryFilters(items) {
-  inventoryPage = 1;
+  const oldQuery = inventorySearchQuery;
+  const oldRarity = inventoryRarityFilter;
+  const oldSale = inventorySaleFilter;
+
   inventorySearchQuery = document.getElementById('inventorySearch').value.toLowerCase();
   inventoryRarityFilter = document.getElementById('inventoryRarityFilter').value;
   inventorySaleFilter = document.getElementById('inventorySaleFilter').value;
+
+  if (oldQuery !== inventorySearchQuery || oldRarity !== inventoryRarityFilter || oldSale !== inventorySaleFilter) {
+    inventoryPage = 1;
+  }
 
   const filtered = items.filter(item => {
     const fullName = `${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number}`.toLowerCase();
@@ -316,12 +323,21 @@ function applyInventoryFilters(items) {
 }
 
 function applyMarketFilters(items) {
-  marketPage = 1;
+  const oldQuery = marketSearchQuery;
+  const oldRarity = marketRarityFilter;
+  const oldPriceMin = marketPriceMin;
+  const oldPriceMax = marketPriceMax;
+  const oldSeller = marketSellerFilter;
+
   marketSearchQuery = document.getElementById('marketSearch').value.toLowerCase();
   marketRarityFilter = document.getElementById('marketRarityFilter').value;
   marketPriceMin = document.getElementById('marketPriceMin').value;
   marketPriceMax = document.getElementById('marketPriceMax').value;
   marketSellerFilter = document.getElementById('marketSellerFilter').value.toLowerCase();
+
+  if (oldQuery !== marketSearchQuery || oldRarity !== marketRarityFilter || oldPriceMin !== marketPriceMin || oldPriceMax !== marketPriceMax || oldSeller !== marketSellerFilter) {
+    marketPage = 1;
+  }
 
   const filtered = items.filter(item => {
     const fullName = `${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number}`.toLowerCase();
