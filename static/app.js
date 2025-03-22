@@ -911,6 +911,10 @@ function refreshGlobalMessages() {
         const globalMessagesContainer = document.getElementById('globalMessages');
         const wasAtBottom = isUserAtBottom(globalMessagesContainer);
 
+        if (data.messages.length === 1) {
+          messages = data.messages;
+        }
+
         const newMessages = [];
         for (let i = 0; i < data.messages.length; i++) {
           const message = data.messages[i];
