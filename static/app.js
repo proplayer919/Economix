@@ -277,7 +277,7 @@ function refreshAccount() {
         inventoryPage = 1;
       }
       // Render inventory with pagination
-      renderInventory(items);
+      applyInventoryFilters(items);
 
       // Update cooldowns
       const now = Date.now() / 1000;
@@ -293,7 +293,7 @@ function refreshAccount() {
     });
 }
 
-function applyInventoryFilters() {
+function applyInventoryFilters(items) {
   inventoryPage = 1;
   inventorySearchQuery = document.getElementById('inventorySearch').value.toLowerCase();
   inventoryRarityFilter = document.getElementById('inventoryRarityFilter').value;
@@ -315,7 +315,7 @@ function applyInventoryFilters() {
   renderInventory(filtered);
 }
 
-function applyMarketFilters() {
+function applyMarketFilters(items) {
   marketPage = 1;
   marketSearchQuery = document.getElementById('marketSearch').value.toLowerCase();
   marketRarityFilter = document.getElementById('marketRarityFilter').value;
@@ -323,7 +323,7 @@ function applyMarketFilters() {
   marketPriceMax = document.getElementById('marketPriceMax').value;
   marketSellerFilter = document.getElementById('marketSellerFilter').value.toLowerCase();
 
-  const filtered = marketItems.filter(item => {
+  const filtered = items.filter(item => {
     const fullName = `${item.name.adjective} ${item.name.material} ${item.name.noun} ${item.name.suffix} #${item.name.number}`.toLowerCase();
     const matchesSearch = fullName.includes(marketSearchQuery);
     const matchesRarity = !marketRarityFilter || item.rarity === marketRarityFilter;
@@ -346,7 +346,7 @@ function refreshMarket() {
     .then(res => res.json())
     .then(data => {
       marketItems = data;
-      applyMarketFilters();
+      applyMarketFilters(data);
     });
 }
 
@@ -474,12 +474,9 @@ function renderMarketplace(marketItems) {
           ${item.name.noun} 
           ${item.name.suffix} #${item.name.number}
         </span>
-        <span class="item-rarity ${item.level.toLowerCase()}">
-          ${item.rarity} ${item.level}
-        </span>
       </div>
       <div class="item-details">
-        <span class="item-level">Level ${item.level}</span>
+        <span class="item-level">⚔️ ${item.rarity} ${item.level}</span>
         <span class="item-price">💰 ${item.price} tokens</span>
         <span class="item-seller">👤 ${item.owner}</span>
       </div>
