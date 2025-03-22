@@ -920,7 +920,7 @@ function refreshGlobalMessages() {
           messages.push(message);
         }
 
-        data.messages.forEach(message => {
+        newMessages.forEach(message => {
           handleNewMessage(message);
         });
 
