@@ -4,6 +4,7 @@ flask-socketio
 werkzeug
 pymongo
 gunicorn
+gevent
 pyotp
 qrcode
 pillow
