@@ -914,7 +914,9 @@ function refreshGlobalMessages() {
         const newMessages = [];
         for (let i = 0; i < data.messages.length; i++) {
           const message = data.messages[i];
-          if (!messages.contains(message)) newMessages.push(message);
+          if (!messages.find(m => (m.timestamp === message.timestamp && m.message === message.message && m.username === message.username))) {
+            newMessages.push(message);
+          }
           messages.push(message);
         }
 
