@@ -880,7 +880,7 @@ function sendGlobalMessage() {
         document.getElementById('messageInput').value = '';
         refreshGlobalMessages();
       } else {
-        customAlert('Error sending message.');
+        customAlert('Error sending message: ' + data.error);
       }
     });
 }

@@ -17,7 +17,7 @@ import html
 import pyotp
 import qrcode
 import io
-from profanity_filter import ProfanityFilter
+from profanity_check import predict, predict_prob
 
 # Initialize Flask application
 app = Flask(__name__)
@@ -39,10 +39,6 @@ handler.setFormatter(
 )
 app.logger.addHandler(handler)
 app.logger.setLevel(logging.INFO)
-
-# Initialize Profanity Filter
-pf = ProfanityFilter()
-pf.censor_char = "-"
 
 # MongoDB configuration
 client = MongoClient(os.environ.get("MONGODB_URI"))
@@ -490,10 +486,16 @@ def register(username, password):
             ),
             400,
         )
+        
+    profane = predict(username)
+    if profane[0] == 1:
+        return (
+            jsonify({"error": "Username is profane", "code": "profane-username"}),
+            400,
+        )
 
     # Sanitize and validate username
     validateUsername = username.strip()
-    validateUsername = pf.censor(validateUsername)
     if not re.match(r"^[a-zA-Z0-9_-]{3,20}$", validateUsername):
         return (
             jsonify(
@@ -1318,9 +1320,15 @@ def send_message(room_name, message_content, username):
 
     if not re.match(r"^[a-zA-Z0-9_-]{1,50}$", room_name):
         return jsonify({"error": "Invalid room name", "code": "invalid-room"}), 400
+      
+    profane = predict(message_content)
+    if profane[0] == 1:
+        return (
+            jsonify({"error": "Message is profane", "code": "profane-message"}),
+            400,
+        )
 
     sanitized_message = html.escape(message_content.strip())
-    sanitized_message = pf.censor(sanitized_message)
     if len(sanitized_message) == 0:
         return (
             jsonify({"error": "Message cannot be empty", "code": "empty-message"}),
