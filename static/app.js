@@ -911,19 +911,19 @@ function refreshGlobalMessages() {
         const globalMessagesContainer = document.getElementById('globalMessages');
         const wasAtBottom = isUserAtBottom(globalMessagesContainer);
 
-        if (data.messages.length === 1) {
-          messages = data.messages;
+        // Filter out duplicates using message IDs
+        const newMessages = data.messages.filter(message =>
+          !messages.some(m => m.id === message.id)
+        );
+
+        // Add new messages and truncate the array to last 500
+        messages.push(...newMessages);
+        const MAX_MESSAGES = 500;
+        if (messages.length > MAX_MESSAGES) {
+          messages = messages.slice(-MAX_MESSAGES);
         }
 
-        const newMessages = [];
-        for (let i = 0; i < data.messages.length; i++) {
-          const message = data.messages[i];
-          if (!messages.find(m => (m.timestamp === message.timestamp && m.message === message.message && m.username === message.username))) {
-            newMessages.push(message);
-          }
-          messages.push(message);
-        }
-
+        // Append new messages to DOM and trim old ones
         newMessages.forEach(message => {
           handleNewMessage(message);
         });
@@ -959,6 +959,13 @@ function appendMessage(message) {
   `;
 
   messagesContainer.appendChild(messageEl);
+
+  // Trim old messages from DOM to keep max 200
+  const MAX_DOM_MESSAGES = 200;
+  const messageElements = messagesContainer.getElementsByClassName('message');
+  while (messageElements.length > MAX_DOM_MESSAGES) {
+    messagesContainer.removeChild(messageElements[0]);
+  }
 
   // Auto-scroll if at bottom
   if (isUserAtBottom(messagesContainer)) {
