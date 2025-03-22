@@ -7,5 +7,5 @@ pyotp
 qrcode
 pillow
 profanity-check
-pkg_resources
 numpy
+setuptools
