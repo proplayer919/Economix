@@ -6,6 +6,4 @@ gunicorn
 pyotp
 qrcode
 pillow
-profanity-check
-numpy
-setuptools
+better_profanity
