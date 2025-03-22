@@ -169,13 +169,12 @@ def authenticate_user():
         request.method == "OPTIONS"
         or request.endpoint
         in [
-            "register",
-            "login",
+            "register_endpoint",
+            "login_endpoint",
             "index",
             "static_file",
-            "get_stats",
+            "stats_endpoint",
         ]
-        or request.endpoint.startswith("dev_")
     ):
         return
 
