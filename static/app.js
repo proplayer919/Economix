@@ -7,6 +7,7 @@ const ITEM_CREATE_COOLDOWN = 60;
 const TOKEN_MINE_COOLDOWN = 120;
 
 let items = [];
+let messages = [];
 let account = {};
 let token = localStorage.getItem('token');
 let activeChatTab = 'global';
@@ -21,6 +22,11 @@ let marketPriceMin = '';
 let marketPriceMax = '';
 let marketSellerFilter = '';
 let marketItems = [];
+
+let unreadMessages = 0;
+let isChatFocused = true;
+let messageSound = new Audio('notification.mp3'); // Add sound file
+let soundEnabled = true;
 
 // Custom modal functions
 function customAlert(message) {
@@ -115,6 +121,16 @@ function customConfirm(message) {
 
 // Tab Switching Logic
 function switchTab(tabName) {
+  const chatTab = document.querySelector('[data-tab="chat"]');
+  if (tabName === 'chat') {
+    unreadMessages = 0;
+    updateNotificationBadge();
+    chatTab.classList.remove('new-messages');
+    isChatFocused = true;
+  } else {
+    isChatFocused = false;
+  }
+
   // Remove active class from all tabs and hide all content
   document.querySelectorAll('.tab').forEach(btn => {
     btn.classList.remove('active');
@@ -895,30 +911,15 @@ function refreshGlobalMessages() {
         const globalMessagesContainer = document.getElementById('globalMessages');
         const wasAtBottom = isUserAtBottom(globalMessagesContainer);
 
-        globalMessagesContainer.innerHTML = '';
+        const newMessages = [];
+        for (let i = 0; i < data.messages.length; i++) {
+          const message = data.messages[i];
+          if (!messages.contains(message)) newMessages.push(message);
+          messages.push(message);
+        }
+
         data.messages.forEach(message => {
-          if (!message.type) message.type = "user";
-
-          const messageElement = document.createElement('div');
-          messageElement.classList.add('message');
-
-          let bold = document.createElement('b');
-          bold.innerText = `${(message.type == "admin") ? "🛠️ ADMIN | " : ""}${(message.type == "mod") ? "🛡️ MOD | " : ""}${(message.type == "system") ? "⚙️ SYSTEM | " : ""} ${message.username}`;
-
-          messageElement.innerText = ": " + message.message.replace(/\s{2,}/g, ' ');
-          messageElement.prepend(bold);
-
-          const deleteMessageElement = document.createElement('span');
-          deleteMessageElement.innerHTML = '🗑️';
-          deleteMessageElement.onclick = () => {
-            deleteMessage(message);
-          }
-
-          if (account.type == "admin" || account.type == "mod") {
-            messageElement.appendChild(deleteMessageElement);
-          }
-
-          globalMessagesContainer.appendChild(messageElement);
+          handleNewMessage(message);
         });
 
         if (wasAtBottom) {
@@ -926,6 +927,67 @@ function refreshGlobalMessages() {
         }
       }
     });
+}
+
+// Enhanced message display
+function appendMessage(message) {
+  const messagesContainer = document.getElementById('globalMessages');
+  const isOwnMessage = message.username === account.username;
+  const messageType = message.type || 'user';
+
+  const messageEl = document.createElement('div');
+  messageEl.className = `message ${messageType} ${isOwnMessage ? 'own-message' : ''}`;
+  messageEl.innerHTML = `
+    <div class="message-header">
+      <span class="message-sender ${messageType}">
+        ${messageType === 'system' ? '⚙️' : ''}
+        ${messageType === 'admin' ? '🛠️' : ''}
+        ${messageType === 'mod' ? '🛡️' : ''}
+        ${message.username}
+      </span>
+      <span class="message-time">${formatTime(message.timestamp)}</span>
+    </div>
+    <div class="message-content">${sanitizeHTML(message.message)}</div>
+    ${account.type === 'admin' || account.type === 'mod' ?
+      `<button class="delete-message" onclick="deleteMessage('${message.id}')">🗑️</button>` : ''}
+  `;
+
+  messagesContainer.appendChild(messageEl);
+
+  // Auto-scroll if at bottom
+  if (isUserAtBottom(messagesContainer)) {
+    scrollToBottom(messagesContainer);
+  }
+}
+
+// New time formatter
+function formatTime(timestamp) {
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+
+function handleNewMessage(message) {
+  const activeTab = document.querySelector('.tab.active').dataset.tab;
+
+  if (activeTab !== 'chat') {
+    unreadMessages++;
+    updateNotificationBadge();
+    if (soundEnabled) messageSound.play();
+  }
+
+  if (!isChatFocused) {
+    document.querySelector('.chat-tab-button').classList.add('new-messages');
+  }
+
+  appendMessage(message);
+}
+
+// New notification badge
+function updateNotificationBadge() {
+  const badge = document.getElementById('chatNotificationBadge');
+  badge.textContent = unreadMessages;
+  badge.style.display = unreadMessages > 0 ? 'block' : 'none';
 }
 
 function refreshLeaderboard() {

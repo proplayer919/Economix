@@ -402,7 +402,6 @@ a {
 
 /* Chat Messages */
 .message {
-  background: var(--background);
   color: var(--text);
   padding: 0.75rem;
   border-radius: 0.5rem;
@@ -410,12 +409,73 @@ a {
   max-width: fit-content;
   word-wrap: break-word;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: var(--card-bg);
+  position: relative;
+  transition: transform 0.2s;
 }
 
-.message.own {
-  background: var(--primary);
-  color: #fff;
+.message:hover {
+  transform: translateX(5px);
+}
+
+.message.system {
+  background: #f0fdf4;
+  border-left: 4px solid #22c55e;
+}
+
+.message.admin {
+  background: #eff6ff;
+  border-left: 4px solid #3b82f6;
+}
+
+.message.mod {
+  background: #fef2f2;
+  border-left: 4px solid #ef4444;
+}
+
+.own-message {
+  background: #e0e7ff;
+  border-left: 4px solid #6366f1;
   margin-left: auto;
+  max-width: 80%;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.message-sender {
+  font-weight: 600;
+}
+
+.message-sender.admin {
+  color: #1d4ed8;
+}
+
+.message-sender.mod {
+  color: #b91c1c;
+}
+
+.message-time {
+  color: #64748b;
+}
+
+.delete-message {
+  position: absolute;
+  right: 0.5rem;
+  top: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.message:hover .delete-message {
+  opacity: 1;
 }
 
 /* Responsive Adjustments */
@@ -487,4 +547,36 @@ a {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.chat-tab-button {
+  position: relative;
+}
+
+.chat-tab-button.new-messages::after {
+  content: '';
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  width: 8px;
+  height: 8px;
+  background: #ef4444;
+  border-radius: 50%;
+}
+
+#chatNotificationBadge {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #ef4444;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }

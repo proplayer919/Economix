@@ -603,6 +603,11 @@ def get_account():
             {"username": request.username},
             {"$set": {"inventory_visibility": "private"}},
         )
+        
+    if "2fa_enabled" not in user:
+        users_collection.update_one(
+            {"username": request.username}, {"$set": {"2fa_enabled": False}}
+        )
 
     if user.get("banned_until", None) and (
         user["banned_until"] < time.time() and user["banned_until"] != 0
