@@ -914,11 +914,10 @@ function refreshGlobalMessages() {
         // Clear existing messages
         globalMessagesContainer.innerHTML = '';
 
-        // Add new messages and truncate the array to last 500
-        messages.push(data.messages);
-        const MAX_MESSAGES = 500;
-        if (messages.length > MAX_MESSAGES) {
-          messages = messages.slice(-MAX_MESSAGES);
+        // Don't count new messages if the array is the same
+        if (data.messages.length !== messages.length ||
+            data.messages.some((m, i) => JSON.stringify(m) !== JSON.stringify(messages[i]))) {
+          unreadMessages = 0;
         }
 
         // Append new messages to DOM and trim old ones
