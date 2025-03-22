@@ -265,12 +265,6 @@ function refreshAccount() {
         return;
       }
 
-      if (data.frozen) {
-        document.getElementById('mainContent').style.display = 'none';
-        document.getElementById('frozenPage').style.display = 'block';
-        return;
-      }
-
       document.getElementById('tokens').textContent = data.tokens;
       document.getElementById('level').textContent = data.level;
       document.getElementById('exp').textContent = data.exp;
@@ -635,7 +629,7 @@ function mineTokens() {
         customAlert(`Error mining tokens: ${data.error}`);
         return;
       }
-      customAlert(`Mined tokens! You now have ${data.tokens} tokens.`).then(() => {
+      customAlert(`Mined ${data.tokens} tokens!`).then(() => {
         refreshAccount();
       });
     });
@@ -1102,48 +1096,6 @@ function unbanUser() {
       });
   });
 }
-
-function freezeUser() {
-  customPrompt("Enter username to freeze:").then(username => {
-    if (!username) return;
-    fetch('/api/freeze_user', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ username: username })
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          customAlert('User frozen!').then(() => {
-            refreshAccount();
-          });
-        } else {
-          customAlert('Error freezing user.');
-        }
-      });
-  });
-}
-
-function unfreezeUser() {
-  customPrompt("Enter username to unfreeze:").then(username => {
-    if (!username) return;
-    fetch('/api/unfreeze_user', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ username: username })
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          customAlert('User unfrozen!').then(() => {
-            refreshAccount();
-          });
-        } else {
-          customAlert('Error unfreezing user.');
-        }
-      });
-  });
-}
 function muteUser() {
   customPrompt("Enter username to mute:").then(username => {
     if (!username) return;
@@ -1490,8 +1442,6 @@ document.getElementById('removeModAdmin').addEventListener('click', removeMod);
 document.getElementById('editTokensForUserAdmin').addEventListener('click', editTokensForUser);
 document.getElementById('banUserAdmin').addEventListener('click', banUser);
 document.getElementById('unbanUserAdmin').addEventListener('click', unbanUser);
-document.getElementById('freezeUserAdmin').addEventListener('click', freezeUser);
-document.getElementById('unfreezeUserAdmin').addEventListener('click', unfreezeUser);
 document.getElementById('muteUserAdmin').addEventListener('click', muteUser);
 document.getElementById('unmuteUserAdmin').addEventListener('click', unmuteUser);
 document.getElementById('fineUserAdmin').addEventListener('click', fineUser);
