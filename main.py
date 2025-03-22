@@ -1660,7 +1660,7 @@ def reset_cooldowns_endpoint():
 @requires_admin
 def edit_tokens_endpoint():
     data = request.get_json()
-    username = data.get("username")
+    username = data.get("username") or request.username
     tokens = data.get("tokens")
 
     return edit_tokens(username, tokens)
@@ -1669,7 +1669,7 @@ def edit_tokens_endpoint():
 @requires_admin
 def edit_exp_endpoint():
     data = request.get_json()
-    username = data.get("username")
+    username = data.get("username") or request.username
     exp = data.get("exp")
 
     return edit_exp(username, exp)
@@ -1678,7 +1678,7 @@ def edit_exp_endpoint():
 @requires_admin
 def edit_level_endpoint():
     data = request.get_json()
-    username = data.get("username")
+    username = data.get("username") or request.username
     level = data.get("level")
 
     return edit_level(username, level)
