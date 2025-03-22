@@ -1385,7 +1385,7 @@ def delete_message():
             400,
         )
 
-    messages_collection.delete_one({"message_id": message_id})
+    messages_collection.delete_one({"id": message_id})
 
     return jsonify({"success": True})
 
