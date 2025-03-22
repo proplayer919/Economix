@@ -1665,7 +1665,7 @@ def get_stats():
 @app.route("/api/get_banner", methods=["GET"])
 @requires_unbanned
 def get_banner():
-    banner = misc_collection.find_one({"type": "banner"})
+    banner = misc_collection.find_one({"type": "banner"}, {"_id": 0})
     return jsonify({"banner": banner})
   
 @app.route("/api/set_banner", methods=["POST"])
