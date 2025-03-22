@@ -18,6 +18,7 @@ import pyotp
 import qrcode
 import io
 from better_profanity import profanity
+import requests
 
 # Initialize Flask application
 app = Flask(__name__)
@@ -142,10 +143,8 @@ def parse_time(length):
         end_time = now + duration
 
     return end_time
-  
-def send_discord_notification(title, description, color=0x00FF00):
-    import requests
 
+def send_discord_notification(title, description, color=0x00FF00):
     webhook_url = DISCORD_WEBHOOK
     if not webhook_url:
         app.logger.error("Discord webhook URL not configured.")
@@ -172,40 +171,40 @@ def notify_user_banned(length, reason, username):
 
 def notify_user_muted(length, username):
     send_discord_notification(title=f"{username} has been muted", description=f"{username} was muted for {length}")
-    
+
 def notify_user_unmuted(username):
     send_discord_notification(title=f"{username} has been unmuted", description=f"{username} was unmuted")
-    
+
 def notify_user_unbanned(username):
     send_discord_notification(title=f"{username} has been unbanned", description=f"{username} was unbanned")
-    
+
 def notify_user_registered(username):
     send_discord_notification(title=f"{username} has registered", description=f"{username} has registered")
-    
+
 def notify_user_logged_in(username):
     send_discord_notification(title=f"{username} has logged in", description=f"{username} has logged in")
-    
+
 def notify_user_2fa_enabled(username):
     send_discord_notification(title=f"{username} has enabled 2FA", description=f"{username} has enabled two-factor authentication")
-    
+
 def notify_user_2fa_disabled(username):
     send_discord_notification(title=f"{username} has disabled 2FA", description=f"{username} has disabled two-factor authentication")
-    
+
 def notify_user_deleted(username):
     send_discord_notification(title=f"{username} has been deleted", description=f"{username} has been deleted")
-    
+
 def notify_admin_added(username):
     send_discord_notification(title=f"{username} has been added as an admin", description=f"{username} has been added as an admin")
-    
+
 def notify_admin_removed(username):
     send_discord_notification(title=f"{username} has been removed as an admin", description=f"{username} has been removed as an admin")
-    
+
 def notify_mod_added(username):
     send_discord_notification(title=f"{username} has been added as a mod", description=f"{username} has been added as a mod by")
-    
+
 def notify_mod_removed(username):
     send_discord_notification(title=f"{username} has been removed as a mod", description=f"{username} has been removed as a mod by")
-    
+
 def notify_user_fined(amount, username):
     send_discord_notification(title=f"{username} has been fined", description=f"{username} has been fined {amount} tokens")
 

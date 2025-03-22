@@ -7,3 +7,4 @@ pyotp
 qrcode
 pillow
 better_profanity
+requests
