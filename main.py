@@ -7,7 +7,6 @@ from uuid import uuid4
 from logging.handlers import RotatingFileHandler
 from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
-from flask_socketio import SocketIO, emit, join_room, leave_room
 from werkzeug.security import generate_password_hash, check_password_hash
 from hashlib import sha256
 from functools import wraps
@@ -27,8 +26,6 @@ app.config.update(
 
 # Security middleware
 CORS(app, origins=os.environ.get("CORS_ORIGINS", "").split(","))
-
-socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Configure logging
 handler = RotatingFileHandler(
@@ -1553,7 +1550,6 @@ def send_message():
             else:
                 messages_collection.insert_one(
                     {
-                        "id": str(uuid4()),
                         "room": room_name,
                         "username": sudo_username,
                         "message": sudo_message,
@@ -1586,17 +1582,17 @@ def send_message():
                 system_message = "Frozen users:\n" + frozen_users_list
         elif command == "help":
             system_message = "Available commands: /clear_chat, /clear_user <username>, /delete_many <amount>, /ban <username> <duration> <reason>, /mute <username> <duration>, /unban <username>, /unmute <username>, /sudo <username> <message>, /list_banned, /list_frozen, /help"
-
-    messages_collection.insert_one(
-        {
-            "id": str(uuid4()),
-            "room": room_name,
-            "username": username,
-            "message": sanitized_message,
-            "timestamp": time.time(),
-            "type": user["type"],
-        }
-    )
+    else:
+        messages_collection.insert_one(
+            {
+                "id": str(uuid4()),
+                "room": room_name,
+                "username": username,
+                "message": sanitized_message,
+                "timestamp": time.time(),
+                "type": user["type"],
+            }
+        )
 
     if system_message:
         messages_collection.insert_one(
@@ -1711,160 +1707,3 @@ def get_user_info(username):
 def get_market():
     market = items_collection.find({"market": True}, {"_id": 0, "owner": 0})
     return jsonify({"market": list(market)})
-
-
-# Add WebSocket handlers
-@socketio.on("connect")
-def handle_connect():
-    token = request.args.get("token")
-    if not token:
-        return False
-    user = users_collection.find_one({"token": token})
-    if not user:
-        return False
-    return True
-
-
-@socketio.on("join_room")
-def handle_join_room(data):
-    room = data.get("room", "global")
-    join_room(room)
-    messages = list(
-        messages_collection.find({"room": room}, {"_id": 0})
-        .sort("timestamp", ASCENDING)
-        .limit(100)
-    )
-    emit("room_history", {"messages": messages})
-
-
-@socketio.on("send_message")
-def handle_send_message(data):
-    room_name = data.get("room", "global")
-    message_content = data.get("message", "")
-    token = request.args.get("token")
-    user = users_collection.find_one({"token": token})
-
-    if not user or user.get("muted"):
-        return
-
-    sanitized_message = html.escape(message_content.strip())
-    if not sanitized_message or len(sanitized_message) > 100:
-        return
-
-    # Command handling logic from original route
-    system_message = None
-    if user["type"] == "admin" and sanitized_message.startswith("/"):
-        command_parts = sanitized_message[1:].split(" ")
-        command = command_parts[0]
-        args = command_parts[1:]
-
-        if command == "clear_chat":
-            messages_collection.delete_many({"room": room_name})
-            system_message = f"Cleared chat in {room_name}"
-        elif command == "clear_user" and len(args) == 1:
-            target_username = args[0]
-            messages_collection.delete_many(
-                {"room": room_name, "username": target_username}
-            )
-            system_message = f"Deleted messages from {target_username} in {room_name}"
-        elif command == "delete_many" and len(args) == 1:
-            amount = args[0]
-            try:
-                amount = int(amount)
-                messages_to_delete = (
-                    messages_collection.find({"room": room_name})
-                    .sort("timestamp", DESCENDING)
-                    .limit(amount)
-                )
-                ids_to_delete = [doc["_id"] for doc in messages_to_delete]
-                messages_collection.delete_many({"_id": {"$in": ids_to_delete}})
-                system_message = f"Deleted {amount} messages from {room_name}"
-            except ValueError:
-                system_message = "Invalid amount specified for deletion"
-
-        elif command == "ban" and len(args) >= 3:
-            target_username, duration, *reason_parts = args
-            reason = " ".join(reason_parts)
-            _ban_user(target_username, reason, duration)
-            system_message = f"Banned {target_username} for {reason} ({duration})"
-        elif command == "mute" and len(args) == 2:
-            target_username, duration = args
-            _mute_user(target_username, duration)
-            system_message = f"Muted {target_username} for {duration}"
-        elif command == "unban" and len(args) == 1:
-            target_username = args[0]
-            users_collection.update_one(
-                {"username": target_username}, {"$set": {"banned": False}}
-            )
-            system_message = f"Unbanned {target_username}"
-        elif command == "unmute" and len(args) == 1:
-            target_username = args[0]
-            _unmute_user(target_username)
-            system_message = f"Unmuted {target_username}"
-        elif command == "sudo" and len(args) >= 2:
-            sudo_username = args[0]
-            sudo_message = " ".join(args[1:])
-            sudo_user = users_collection.find_one({"username": sudo_username})
-            if not sudo_user:
-                system_message = f"User {sudo_username} not found"
-            else:
-                messages_collection.insert_one(
-                    {
-                        "id": str(uuid4()),
-                        "room": room_name,
-                        "username": sudo_username,
-                        "message": sudo_message,
-                        "timestamp": time.time(),
-                        "type": sudo_user["type"],
-                    }
-                )
-        elif command == "list_banned":
-            banned_users = users_collection.find({"banned": True})
-
-            if len(list(banned_users)) == 0:
-                system_message = "Nobody is banned."
-            else:
-                banned_users_list = "\n".join(
-                    [
-                        f"{user['username']} - {user.get("banned_reason", "No reason provided")}"
-                        for user in banned_users
-                    ]
-                )
-                system_message = "Banned users:\n" + banned_users_list
-        elif command == "list_frozen":
-            frozen_users = users_collection.find({"frozen": True})
-
-            if len(list(frozen_users)) == 0:
-                system_message = "Nobody is frozen."
-            else:
-                frozen_users_list = "\n".join(
-                    [user["username"] for user in frozen_users]
-                )
-                system_message = "Frozen users:\n" + frozen_users_list
-        elif command == "help":
-            system_message = "Available commands: /clear_chat, /clear_user <username>, /delete_many <amount>, /ban <username> <duration> <reason>, /mute <username> <duration>, /unban <username>, /unmute <username>, /sudo <username> <message>, /list_banned, /list_frozen, /help"
-
-        if system_message:
-            system_msg = {
-                "id": str(uuid4()),
-                "room": room_name,
-                "username": "System",
-                "message": system_message,
-                "timestamp": time.time(),
-                "type": "system",
-            }
-            messages_collection.insert_one(system_msg)
-            emit("new_message", system_msg, room=room_name)
-            return
-
-    # Regular message handling
-    message_data = {
-        "id": str(uuid4()),
-        "room": room_name,
-        "username": user["username"],
-        "message": sanitized_message,
-        "timestamp": time.time(),
-        "type": user.get("type", "user"),
-    }
-    messages_collection.insert_one(message_data)
-    emit("new_message", message_data, room=room_name)
