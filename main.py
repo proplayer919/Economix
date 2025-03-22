@@ -144,69 +144,23 @@ def parse_time(length):
 
     return end_time
 
+
 def send_discord_notification(title, description, color=0x00FF00):
     webhook_url = DISCORD_WEBHOOK
     if not webhook_url:
         app.logger.error("Discord webhook URL not configured.")
         return
 
-    data = {
-        "embeds": [
-            {
-                "title": title,
-                "description": description,
-                "color": color
-            }
-        ]
-    }
+    data = {"embeds": [{"title": title, "description": description, "color": color}]}
 
     response = requests.post(webhook_url, json=data)
     if response.status_code == 204:
         app.logger.info("Notification sent to Discord successfully.")
     else:
-        app.logger.error(f"Failed to send notification to Discord: {response.status_code} {response.text}")
+        app.logger.error(
+            f"Failed to send notification to Discord: {response.status_code} {response.text}"
+        )
 
-def notify_user_banned(length, reason, username):
-    send_discord_notification(title=f"{username} has been banned", description=f"{username} was banned for {length}. Reason: {reason}")
-
-def notify_user_muted(length, username):
-    send_discord_notification(title=f"{username} has been muted", description=f"{username} was muted for {length}")
-
-def notify_user_unmuted(username):
-    send_discord_notification(title=f"{username} has been unmuted", description=f"{username} was unmuted")
-
-def notify_user_unbanned(username):
-    send_discord_notification(title=f"{username} has been unbanned", description=f"{username} was unbanned")
-
-def notify_user_registered(username):
-    send_discord_notification(title=f"{username} has registered", description=f"{username} has registered")
-
-def notify_user_logged_in(username):
-    send_discord_notification(title=f"{username} has logged in", description=f"{username} has logged in")
-
-def notify_user_2fa_enabled(username):
-    send_discord_notification(title=f"{username} has enabled 2FA", description=f"{username} has enabled two-factor authentication")
-
-def notify_user_2fa_disabled(username):
-    send_discord_notification(title=f"{username} has disabled 2FA", description=f"{username} has disabled two-factor authentication")
-
-def notify_user_deleted(username):
-    send_discord_notification(title=f"{username} has been deleted", description=f"{username} has been deleted")
-
-def notify_admin_added(username):
-    send_discord_notification(title=f"{username} has been added as an admin", description=f"{username} has been added as an admin")
-
-def notify_admin_removed(username):
-    send_discord_notification(title=f"{username} has been removed as an admin", description=f"{username} has been removed as an admin")
-
-def notify_mod_added(username):
-    send_discord_notification(title=f"{username} has been added as a mod", description=f"{username} has been added as a mod by")
-
-def notify_mod_removed(username):
-    send_discord_notification(title=f"{username} has been removed as a mod", description=f"{username} has been removed as a mod by")
-
-def notify_user_fined(amount, username):
-    send_discord_notification(title=f"{username} has been fined", description=f"{username} has been fined {amount} tokens")
 
 # Authentication middleware
 @app.before_request
@@ -520,9 +474,11 @@ def set_level(username, level):
         {"username": username}, {"$set": {"level": level, "exp": level_exp}}
     )
 
+
 ##########################
 #        Handlers        #
 ##########################
+
 
 def get_user(username):
     return users_collection.find_one({"username": username})
@@ -594,9 +550,9 @@ def register(username, password):
                 "inventory_visibility": "private",
             }
         )
-        
-        notify_user_registered(username)
-        
+
+        send_discord_notification(f"New user registered", f"Username: {username}")
+
         return jsonify({"success": True}), 201
     except DuplicateKeyError:
         return (
@@ -648,7 +604,7 @@ def login(username, password, code=None, token=None):
 
     token = str(uuid4())
     users_collection.update_one({"username": username}, {"$set": {"token": token}})
-    notify_user_logged_in(username)
+    send_discord_notification(f"User logged in", f"Username: {username}")
     return jsonify({"success": True, "token": token})
 
 
@@ -662,8 +618,8 @@ def delete_account(username):
 
     # Delete the user
     users_collection.delete_one({"username": username})
-    
-    notify_user_deleted(username)
+
+    send_discord_notification(f"User deleted", f"Username: {username}")
 
     return jsonify({"success": True})
 
@@ -693,7 +649,7 @@ def setup_2fa(username):
         image="https://economix.proplayer919.dev/brand/logo.png",
     )
     code = user["2fa_code"]
-    notify_user_2fa_enabled(username)
+    send_discord_notification(f"2FA enabled", f"Username: {username}")
     return jsonify(
         {"success": True, "provisioning_uri": provisioning_uri, "backup_code": code}
     )
@@ -742,7 +698,7 @@ def disable_2fa(username):
         {"username": username},
         {"$set": {"2fa_enabled": False, "2fa_secret": None, "2fa_code": None}},
     )
-    notify_user_2fa_disabled(username)
+    send_discord_notification(f"2FA disabled", f"Username: {username}")
     return jsonify({"success": True})
 
 
@@ -795,6 +751,24 @@ def create_item(username):
 
     add_exp(username, 10)
 
+    item = new_item
+    name_parts = [
+        item["name"]["adjective"],
+        item["name"]["material"],
+        item["name"]["noun"],
+    ]
+    suffix = item["name"]["suffix"]
+    if suffix.strip():
+        name_parts.append(suffix)
+    name_parts.append(f"#{item['name']['number']}")
+    item_name = " ".join(name_parts)
+
+    send_discord_notification(
+        title="New Item Created",
+        description=f"User {username} created a new item: {item_name} (Rarity: {new_item['rarity']}, Level: {new_item['level']})",
+        color=0x00FF00,
+    )
+
     return jsonify(
         {k: v for k, v in new_item.items() if k != "_id" and k != "item_secret"}
     )
@@ -832,6 +806,12 @@ def mine_tokens(username):
     )
 
     add_exp(username, 5)
+
+    send_discord_notification(
+        title="Tokens Mined",
+        description=f"User {username} mined {mined_tokens} tokens",
+        color=0x00FF00,
+    )
 
     return jsonify({"success": True, "tokens": mined_tokens})
 
@@ -878,6 +858,31 @@ def sell_item(username, item_id, price):
             }
         },
     )
+
+    # Construct item name
+    name_parts = [
+        item["name"]["adjective"],
+        item["name"]["material"],
+        item["name"]["noun"],
+    ]
+    suffix = item["name"]["suffix"]
+    if suffix.strip():
+        name_parts.append(suffix)
+    name_parts.append(f"#{item['name']['number']}")
+    item_name = " ".join(name_parts)
+
+    if update_data["for_sale"]:
+        send_discord_notification(
+            title="Item Listed for Sale",
+            description=f"User {username} listed {item_name} for {price} tokens",
+            color=0xFFFF00,
+        )
+    else:
+        send_discord_notification(
+            title="Item Unlisted",
+            description=f"User {username} unlisted {item_name}",
+            color=0xFFFF00,
+        )
 
     return jsonify({"success": True})
 
@@ -970,6 +975,25 @@ def buy_item(username, item_id):
 
     add_exp(username, 5)
     add_exp(seller_username, 5)
+
+    # Construct item name
+    name_parts = [
+        item["name"]["adjective"],
+        item["name"]["material"],
+        item["name"]["noun"],
+    ]
+    suffix = item["name"]["suffix"]
+    if suffix.strip():
+        name_parts.append(suffix)
+    name_parts.append(f"#{item['name']['number']}")
+    item_name = " ".join(name_parts)
+
+    send_discord_notification(
+        title="Item Purchased",
+        description=f"User {username} bought {item_name} from {seller_username} for {item['price']} tokens",
+        color=0x0000FF,
+    )
+
     return jsonify({"success": True})
 
 
@@ -1064,6 +1088,13 @@ def reset_cooldowns(username):
     users_collection.update_one(
         {"username": username}, {"$set": {"last_item_time": 0, "last_mine_time": 0}}
     )
+
+    send_discord_notification(
+        title="Cooldowns Reset",
+        description=f"Admin {request.username} reset cooldowns for {username}",
+        color=0xFFA500,
+    )
+
     return jsonify({"success": True})
 
 
@@ -1081,6 +1112,13 @@ def edit_tokens(username, tokens):
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     users_collection.update_one({"username": username}, {"$set": {"tokens": tokens}})
+
+    send_discord_notification(
+        title="Tokens Edited",
+        description=f"Admin {request.username} set {username}'s tokens to {tokens}",
+        color=0xFFA500,
+    )
+
     return jsonify({"success": True})
 
 
@@ -1101,6 +1139,13 @@ def edit_exp(username, exp):
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     set_exp(username, exp)
+
+    send_discord_notification(
+        title="Experience Edited",
+        description=f"Admin {request.username} set {username}'s experience to {exp}",
+        color=0xFFA500,
+    )
+
     return jsonify({"success": True})
 
 
@@ -1123,6 +1168,13 @@ def edit_level(username, level):
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     set_level(username, level)
+
+    send_discord_notification(
+        title="Level Edited",
+        description=f"Admin {request.username} set {username}'s level to {level}",
+        color=0xFFA500,
+    )
+
     return jsonify({"success": True})
 
 
@@ -1132,7 +1184,11 @@ def add_admin(username):
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     users_collection.update_one({"username": username}, {"$set": {"type": "admin"}})
-    notify_admin_added(username)
+    send_discord_notification(
+        title="Admin Added",
+        description=f"Admin {request.username} added {username} as an admin",
+        color=0xFFA500,
+    )
     return jsonify({"success": True})
 
 
@@ -1142,7 +1198,11 @@ def remove_admin(username):
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     users_collection.update_one({"username": username}, {"$set": {"type": "user"}})
-    notify_admin_removed(username)
+    send_discord_notification(
+        title="Admin Removed",
+        description=f"Admin {request.username} removed {username} as an admin",
+        color=0xFFA500,
+    )
     return jsonify({"success": True})
 
 
@@ -1152,7 +1212,11 @@ def add_mod(username):
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     users_collection.update_one({"username": username}, {"$set": {"type": "mod"}})
-    notify_mod_added(username)
+    send_discord_notification(
+        title="Mod Added",
+        description=f"Admin {request.username} added {username} as a mod",
+        color=0xFFA500,
+    )
     return jsonify({"success": True})
 
 
@@ -1162,7 +1226,11 @@ def remove_mod(username):
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     users_collection.update_one({"username": username}, {"$set": {"type": "user"}})
-    notify_mod_removed(username)
+    send_discord_notification(
+        title="Mod Removed",
+        description=f"Admin {request.username} removed {username} as a mod",
+        color=0xFFA500,
+    )
     return jsonify({"success": True})
 
 
@@ -1188,6 +1256,26 @@ def edit_item(item_id, new_name, new_icon, new_rarity):
 
     if updates:
         items_collection.update_one({"id": item_id}, {"$set": updates})
+
+        item = items_collection.find_one({"id": item_id}, {"_id": 0})
+        name_parts = [
+            item["name"]["adjective"],
+            item["name"]["material"],
+            item["name"]["noun"],
+        ]
+        suffix = item["name"]["suffix"]
+        if suffix.strip():
+            name_parts.append(suffix)
+        name_parts.append(f"#{item['name']['number']}")
+        item_name = " ".join(name_parts)
+
+        updates_str = ", ".join([f"{k}: {v}" for k, v in updates.items()])
+        send_discord_notification(
+            title="Item Edited",
+            description=f"Admin {request.username} edited item {item_name} (ID: {item_id}). Changes: {updates_str}",
+            color=0xFFA500,
+        )
+
     return jsonify({"success": True})
 
 
@@ -1199,6 +1287,13 @@ def delete_item(item_id):
     owner = item["owner"]
     users_collection.update_one({"username": owner}, {"$pull": {"items": item_id}})
     items_collection.delete_one({"id": item_id})
+
+    send_discord_notification(
+        title="Item Deleted",
+        description=f"Admin {request.username} deleted item {item_id}",
+        color=0xFF0000,
+    )
+
     return jsonify({"success": True})
 
 
@@ -1219,7 +1314,11 @@ def ban_user(username, length, reason):
         {"username": username},
         {"$set": {"banned_until": end_time, "banned_reason": reason, "banned": True}},
     )
-    notify_user_banned(length, reason, username)
+    send_discord_notification(
+        title="User Banned",
+        description=f"Admin {request.username} banned {username} for {length}. Reason: {reason}",
+        color=0xFF0000,
+    )
     return jsonify({"success": True})
 
 
@@ -1232,7 +1331,11 @@ def unban_user(username):
         {"username": username},
         {"$set": {"banned_until": None, "banned_reason": None, "banned": False}},
     )
-    notify_user_unbanned(username)
+    send_discord_notification(
+        title="User Unbanned",
+        description=f"Admin {request.username} unbanned {username}",
+        color=0xFFA500,
+    )
     return jsonify({"success": True})
 
 
@@ -1247,7 +1350,11 @@ def mute_user(username, length):
         {"username": username},
         {"$set": {"muted_until": end_time, "muted": True}},
     )
-    notify_user_muted(length, username)
+    send_discord_notification(
+        title="User Muted",
+        description=f"Admin {request.username} muted {username} for {length}",
+        color=0xFFA500,
+    )
     return jsonify({"success": True})
 
 
@@ -1259,7 +1366,11 @@ def unmute_user(username):
     users_collection.update_one(
         {"username": username}, {"$set": {"muted": False, "muted_until": None}}
     )
-    notify_user_unmuted(username)
+    send_discord_notification(
+        title="User Unmuted",
+        description=f"Admin {request.username} unmuted {username}",
+        color=0xFFA500,
+    )
     return jsonify({"success": True})
 
 
@@ -1269,7 +1380,11 @@ def fine_user(username, amount):
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     users_collection.update_one({"username": username}, {"$inc": {"tokens": -amount}})
-    notify_user_fined(amount, username)
+    send_discord_notification(
+        title="User Fined",
+        description=f"Admin {request.username} fined {username} {amount} tokens",
+        color=0xFFA500,
+    )
     return jsonify({"success": True})
 
 
@@ -1282,12 +1397,25 @@ def delete_message(message_id):
 
     messages_collection.delete_one({"id": message_id})
 
+    send_discord_notification(
+        title="Message Deleted",
+        description=f"Mod/Admin {request.username} deleted message with ID {message_id}",
+        color=0xFF0000,
+    )
+
     return jsonify({"success": True})
 
 
 def set_banner(banner):
     misc_collection.delete_many({"type": "banner"})
     misc_collection.insert_one({"type": "banner", "value": banner})
+
+    send_discord_notification(
+        title="Banner Updated",
+        description=f"Admin {request.username} set the banner to {banner}",
+        color=0x00FF00,
+    )
+
     return jsonify({"success": True})
 
 
@@ -1491,6 +1619,7 @@ def get_banner():
 #        Routes          #
 ##########################
 
+
 # Static files
 @app.route("/")
 def index():
@@ -1519,15 +1648,18 @@ def login_endpoint():
 
     return login(username, password)
 
+
 @app.route("/api/setup_2fa", methods=["POST"])
 @requires_unbanned
 def setup_2fa_endpoint():
     return setup_2fa(request.username)
 
+
 @app.route("/api/2fa_qrcode", methods=["GET"])
 @requires_unbanned
 def get_2fa_qrcode_endpoint():
     return get_2fa_qrcode(request.username)
+
 
 @app.route("/api/verify_2fa", methods=["POST"])
 @requires_unbanned
@@ -1537,10 +1669,12 @@ def verify_2fa_endpoint():
 
     return verify_2fa(request.username, code)
 
+
 @app.route("/api/disable_2fa", methods=["POST"])
 @requires_unbanned
 def disable_2fa_endpoint():
     return disable_2fa(request.username)
+
 
 @app.route("/api/account", methods=["GET"])
 @requires_unbanned
@@ -1572,25 +1706,30 @@ def account_endpoint():
         }
     )
 
+
 @app.route("/api/delete_account", methods=["POST"])
 @requires_unbanned
 def delete_account_endpoint():
     return delete_account(request.username)
+
 
 @app.route("/api/create_item", methods=["POST"])
 @requires_unbanned
 def create_item_endpoint():
     return create_item(request.username)
 
+
 @app.route("/api/mine_tokens", methods=["POST"])
 @requires_unbanned
 def mine_tokens_endpoint():
     return mine_tokens(request.username)
 
+
 @app.route("/api/market", methods=["GET"])
 @requires_unbanned
 def market_endpoint():
     return get_market(request.username)
+
 
 @app.route("/api/sell_item", methods=["POST"])
 @requires_unbanned
@@ -1601,6 +1740,7 @@ def sell_item_endpoint():
 
     return sell_item(request.username, item_id, price)
 
+
 @app.route("/api/buy_item", methods=["POST"])
 @requires_unbanned
 def buy_item_endpoint():
@@ -1608,6 +1748,7 @@ def buy_item_endpoint():
     item_id = data.get("item_id")
 
     return buy_item(request.username, item_id)
+
 
 @app.route("/api/take_item", methods=["POST"])
 @requires_unbanned
@@ -1617,10 +1758,12 @@ def take_item_endpoint():
 
     return take_item(request.username, item_secret)
 
+
 @app.route("/api/leaderboard", methods=["GET"])
 @requires_unbanned
 def leaderboard_endpoint():
     return get_leaderboard()
+
 
 @app.route("/api/send_message", methods=["POST"])
 @requires_unbanned
@@ -1631,6 +1774,7 @@ def send_message_endpoint():
 
     return send_message(room, message, request.username)
 
+
 @app.route("/api/get_messages", methods=["GET"])
 @requires_unbanned
 def get_messages_endpoint():
@@ -1638,6 +1782,7 @@ def get_messages_endpoint():
     room = data.get("room", "global")
 
     return get_messages(room)
+
 
 @app.route("/api/get_banner", methods=["GET"])
 @requires_unbanned
@@ -1656,6 +1801,7 @@ def stats_endpoint():
 def reset_cooldowns_endpoint():
     return reset_cooldowns(request.username)
 
+
 @app.route("/api/edit_tokens", methods=["POST"])
 @requires_admin
 def edit_tokens_endpoint():
@@ -1664,6 +1810,7 @@ def edit_tokens_endpoint():
     tokens = data.get("tokens")
 
     return edit_tokens(username, tokens)
+
 
 @app.route("/api/edit_exp", methods=["POST"])
 @requires_admin
@@ -1674,6 +1821,7 @@ def edit_exp_endpoint():
 
     return edit_exp(username, exp)
 
+
 @app.route("/api/edit_level", methods=["POST"])
 @requires_admin
 def edit_level_endpoint():
@@ -1683,6 +1831,7 @@ def edit_level_endpoint():
 
     return edit_level(username, level)
 
+
 @app.route("/api/add_admin", methods=["POST"])
 @requires_admin
 def add_admin_endpoint():
@@ -1690,6 +1839,7 @@ def add_admin_endpoint():
     username = data.get("username")
 
     return add_admin(username)
+
 
 @app.route("/api/remove_admin", methods=["POST"])
 @requires_admin
@@ -1699,6 +1849,7 @@ def remove_admin_endpoint():
 
     return remove_admin(username)
 
+
 @app.route("/api/add_mod", methods=["POST"])
 @requires_admin
 def add_mod_endpoint():
@@ -1707,6 +1858,7 @@ def add_mod_endpoint():
 
     return add_mod(username)
 
+
 @app.route("/api/remove_mod", methods=["POST"])
 @requires_admin
 def remove_mod_endpoint():
@@ -1714,6 +1866,7 @@ def remove_mod_endpoint():
     username = data.get("username")
 
     return remove_mod(username)
+
 
 @app.route("/api/edit_item", methods=["POST"])
 @requires_admin
@@ -1726,6 +1879,7 @@ def edit_item_endpoint():
 
     return edit_item(item_id, new_name, new_icon, new_rarity)
 
+
 @app.route("/api/delete_item", methods=["POST"])
 @requires_admin
 def delete_item_endpoint():
@@ -1733,6 +1887,7 @@ def delete_item_endpoint():
     item_id = data.get("item_id")
 
     return delete_item(item_id)
+
 
 @app.route("/api/ban_user", methods=["POST"])
 @requires_admin
@@ -1744,6 +1899,7 @@ def ban_user_endpoint():
 
     return ban_user(username, length, reason)
 
+
 @app.route("/api/unban_user", methods=["POST"])
 @requires_admin
 def unban_user_endpoint():
@@ -1751,6 +1907,7 @@ def unban_user_endpoint():
     username = data.get("username")
 
     return unban_user(username)
+
 
 @app.route("/api/fine_user", methods=["POST"])
 @requires_admin
@@ -1761,6 +1918,7 @@ def fine_user_endpoint():
 
     return fine_user(username, amount)
 
+
 @app.route("/api/mute_user", methods=["POST"])
 @requires_mod
 def mute_user_endpoint():
@@ -1770,6 +1928,7 @@ def mute_user_endpoint():
 
     return mute_user(username, length)
 
+
 @app.route("/api/unmute_user", methods=["POST"])
 @requires_mod
 def unmute_user_endpoint():
@@ -1778,10 +1937,12 @@ def unmute_user_endpoint():
 
     return unmute_user(username)
 
+
 @app.route("/api/users", methods=["GET"])
 @requires_mod
 def users_endpoint():
     return get_users()
+
 
 @app.route("/api/delete_message", methods=["POST"])
 @requires_mod
@@ -1790,6 +1951,7 @@ def delete_message_endpoint():
     message_id = data.get("message_id")
 
     return delete_message(message_id)
+
 
 @app.route("/api/set_banner", methods=["POST"])
 @requires_admin
