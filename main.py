@@ -1550,6 +1550,7 @@ def send_message():
             else:
                 messages_collection.insert_one(
                     {
+                        "id": str(uuid4()),
                         "room": room_name,
                         "username": sudo_username,
                         "message": sudo_message,

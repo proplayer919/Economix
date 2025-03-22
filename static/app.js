@@ -7,7 +7,7 @@ const ITEM_CREATE_COOLDOWN = 60;
 const TOKEN_MINE_COOLDOWN = 120;
 
 let items = [];
-let messages = [];
+let globalMessages = [];
 let account = {};
 let token = localStorage.getItem('token');
 let activeChatTab = 'global';
@@ -911,7 +911,9 @@ function refreshGlobalMessages() {
         const globalMessagesContainer = document.getElementById('globalMessages');
         const wasAtBottom = isUserAtBottom(globalMessagesContainer);
 
-        if (data.messages === messages) {
+        console.debug(globalMessages);
+
+        if (data.messages === globalMessages) {
           console.log('No new messages');
           return;
         }
@@ -928,7 +930,7 @@ function refreshGlobalMessages() {
           scrollToBottom(globalMessagesContainer);
         }
 
-        messages = data.messages;
+        globalMessages = data.messages;
       }
     });
 }
