@@ -474,8 +474,8 @@ function renderMarketplace(marketItems) {
           ${item.name.noun} 
           ${item.name.suffix} #${item.name.number}
         </span>
-        <span class="item-rarity ${item.rarity.toLowerCase()}">
-          ${item.rarity}
+        <span class="item-rarity ${item.level.toLowerCase()}">
+          ${item.rarity} ${item.level}
         </span>
       </div>
       <div class="item-details">
