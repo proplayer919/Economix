@@ -49,6 +49,7 @@ items_collection = db.items
 messages_collection = db.messages
 rooms_collection = db.rooms
 item_meta_collection = db.item_meta
+misc_collection = db.misc
 
 # Create indexes
 users_collection.create_index([("username", ASCENDING)], unique=True)
@@ -56,6 +57,7 @@ items_collection.create_index([("id", ASCENDING)], unique=True)
 messages_collection.create_index([("room", ASCENDING), ("timestamp", DESCENDING)])
 rooms_collection.create_index([("name", ASCENDING)], unique=True)
 item_meta_collection.create_index([("id", ASCENDING)])
+misc_collection.create_index([("type", ASCENDING)])
 
 # Configuration constants
 ITEM_CREATE_COOLDOWN = int(os.environ.get("ITEM_CREATE_COOLDOWN", 60))
@@ -88,7 +90,7 @@ def authenticate_user():
         "index",
         "static_file",
         "get_stats",
-    ]:
+    ] or request.endpoint.startswith("dev_"):
         return
 
     auth_header = request.headers.get("Authorization")
@@ -1659,10 +1661,24 @@ def get_stats():
             ]
         }
     )
+    
+@app.route("/api/get_banner", methods=["GET"])
+@requires_unbanned
+def get_banner():
+    banner = misc_collection.find_one({"type": "banner"})
+    return jsonify({"banner": banner})
+  
+@app.route("/api/set_banner", methods=["POST"])
+@requires_admin
+def set_banner():
+    banner = request.json.get("banner")
+    misc_collection.delete_many({"type": "banner"})
+    misc_collection.insert_one({"type": "banner", "value": banner})
+    return jsonify({"success": True})
 
 
 @app.route("/dev/api/get_item_info/<string:item_id>", methods=["GET"])
-def get_item_info(item_id):
+def dev_get_item_info(item_id):
     item = items_collection.find_one(
         {"item_id": item_id},
         {"_id": 0, "item_secret": 0},
@@ -1673,7 +1689,7 @@ def get_item_info(item_id):
 
 
 @app.route("/dev/api/get_item_meta/<string:meta_id>", methods=["GET"])
-def get_item_meta(meta_id):
+def dev_get_item_meta(meta_id):
     item = item_meta_collection.find_one(
         {"meta_id": meta_id},
         {"_id": 0},
@@ -1684,7 +1700,7 @@ def get_item_meta(meta_id):
 
 
 @app.route("/dev/api/get_user_info/<string:username>", methods=["GET"])
-def get_user_info(username):
+def dev_get_user_info(username):
     user = users_collection.find_one(
         {"username": username},
         {
@@ -1705,6 +1721,6 @@ def get_user_info(username):
 
 
 @app.route("/dev/api/get_market", methods=["GET"])
-def get_market():
+def dev_get_market():
     market = items_collection.find({"market": True}, {"_id": 0, "owner": 0})
     return jsonify({"market": list(market)})

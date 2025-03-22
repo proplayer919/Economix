@@ -226,6 +226,19 @@ function showMainContent() {
   document.getElementById('mainContent').style.display = 'block';
 }
 
+function refreshBanner() {
+  fetch('/api/get_banner', {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.banner) {
+        document.getElementById('banner').style.display = 'block';
+        document.getElementById('banner').innerText = data.banner.value;
+      }
+    });
+}
+
 function refreshAccount() {
   const token = localStorage.getItem('token');
   fetch('/api/account', {
@@ -1200,6 +1213,27 @@ function fineUser() {
   });
 }
 
+function setBanner() {
+  customPrompt("Enter banner:").then(banner => {
+    if (!banner) return;
+    fetch('/api/set_banner', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ banner: banner })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          customAlert('Banner set!').then(() => {
+            refreshBanner();
+          });
+        } else {
+          customAlert('Error setting banner.');
+        }
+      });
+  });
+}
+
 function listUsers() {
   fetch('/api/users', {
     method: 'GET',
@@ -1443,6 +1477,7 @@ setInterval(() => {
 
 // Admin Dashboard event listeners
 document.getElementById('listUsersAdmin').addEventListener('click', listUsers);
+document.getElementById('setBannerAdmin').addEventListener('click', setBanner);
 document.getElementById('editTokensAdmin').addEventListener('click', editTokens);
 document.getElementById('editExpAdmin').addEventListener('click', editExp);
 document.getElementById('editLevelAdmin').addEventListener('click', editLevel);
