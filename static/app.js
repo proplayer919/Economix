@@ -348,7 +348,7 @@ function renderPets(pets) {
       <div class="pet-entry-content">
         <span class="pet-info">
           <strong>${pet.name}</strong> - Level ${pet.level}<br>
-          Status: <span class="pet-status">${pet.status.charAt(0).toUpperCase() + pet.status.slice(1)}</span><br>
+          Status: <span class="pet-status pet-status-${pet.status}">${pet.status.charAt(0).toUpperCase() + pet.status.slice(1)}</span><br>
           <span class="feeding-status">Last fed: ${daysAgo === 0 ? 'today' : `${daysAgo} days ago`}</span>
           <button class="btn btn-primary" onclick="feedPet('${pet.id}')">Feed (10 tokens)</button>
         </span>

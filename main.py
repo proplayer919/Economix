@@ -281,8 +281,6 @@ def update_pet(pet_id):
         pets_collection.update_one({"id": pet_id}, {"$set": {"health": "hungry"}})
     elif last_fed.date() == three_days_ago.date():
         pets_collection.update_one({"id": pet_id}, {"$set": {"health": "starving"}})
-    else:
-        pets_collection.update_one({"id": pet_id}, {"$set": {"health": "dead"}})
 
 
 def update_account(username):

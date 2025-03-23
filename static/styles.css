@@ -615,15 +615,25 @@ a {
   text-align: center;
 }
 
-.pet-status {
-  font-weight: bold;
-  color: var(--success);
-}
-
 .pet-entry button {
   margin-top: 0.5rem;
 }
 
 .pet-list {
   list-style: none;
+}
+
+.pet-status-healthy {
+  font-weight: bold;
+  color: var(--success);
+}
+
+.pet-status-hungry {
+  font-weight: bold;
+  color: var(--danger);
+}
+
+.pet-status-starving {
+  font-weight: bold;
+  color: var(--danger);
 }
