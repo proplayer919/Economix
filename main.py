@@ -1813,7 +1813,7 @@ def delete_account_endpoint():
 def create_item_endpoint():
     return create_item(request.username)
   
-@app.route("/api/buty_pet", methods=["POST"])
+@app.route("/api/buy_pet", methods=["POST"])
 @requires_unbanned
 def buy_pet_endpoint():
     return buy_pet(request.username)
