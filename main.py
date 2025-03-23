@@ -263,20 +263,20 @@ def update_item(item_id):
 def update_pet(pet_id):
     pet = pets_collection.find_one({"id": pet_id})
         
-    last_fed = datetime.datetime.fromtimestamp(pet["last_fed"]).date()
+    last_fed = datetime.datetime.fromtimestamp(pet["last_fed"])
     
-    today = datetime.datetime.now().date()
+    today = datetime.datetime.now()
     yesterday = today - datetime.timedelta(days=1)
     two_days_ago = today - datetime.timedelta(days=2)
     three_days_ago = today - datetime.timedelta(days=3)
     
-    if last_fed == today:
+    if last_fed.date() == today.date():
         pets_collection.update_one({"id": pet_id}, {"$set": {"health": "healthy"}})
-    elif last_fed == yesterday:
+    elif last_fed.date() == yesterday.date():
         pets_collection.update_one({"id": pet_id}, {"$set": {"health": "healthy"}})
-    elif last_fed == two_days_ago:
+    elif last_fed.date() == two_days_ago.date():
         pets_collection.update_one({"id": pet_id}, {"$set": {"health": "hungry"}})
-    elif last_fed == three_days_ago:
+    elif last_fed.date() == three_days_ago.date():
         pets_collection.update_one({"id": pet_id}, {"$set": {"health": "starving"}})
     else:
         pets_collection.update_one({"id": pet_id}, {"$set": {"health": "dead"}})
