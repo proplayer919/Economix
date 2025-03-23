@@ -327,7 +327,12 @@ function renderPets(pets) {
   if (pets.length === 0) {
     const li = document.createElement('li');
     li.className = 'pet-entry';
-    li.innerHTML = 'You have no pets. <button class="btn btn-primary" onclick="buyPet()">Buy a pet (100 tokens)</button>';
+    li.innerHTML = `
+      <div class="pet-entry-content">
+        <p>You have no pets.</p>
+        <button class="btn btn-primary" onclick="buyPet()">Buy a pet (100 tokens)</button>
+      </div>
+    `;
     petsList.appendChild(li);
     return;
   }
@@ -338,23 +343,19 @@ function renderPets(pets) {
     const lastFed = new Date(pet.lastFed);
     const timeDiff = today.getTime() - lastFed.getTime();
     const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
-    if (daysDiff >= 1) {
-      fedToday = false;
-    }
-    else {
-      fedToday = true;
-    }
+    const fedToday = daysDiff < 1;
 
     const li = document.createElement('li');
     li.className = 'pet-entry';
     li.innerHTML = `
-      <span class="pet-info">
-        ${pet.name} - Level ${pet.level}
-        Your pet is ${pet.status}
-        <br>
-        ${fedToday ? 'Fed today' : 'Not fed today'}
-        <button class="btn btn-primary" onclick="feedPet('${pet.id}')">Feed (10 tokens)</button>
-      </span>
+      <div class="pet-entry-content">
+        <span class="pet-info">
+          <strong>${pet.name}</strong> - Level ${pet.level}<br>
+          Status: <span class="pet-status">${pet.status}</span><br>
+          <span class="feeding-status">${fedToday ? 'Fed today' : 'Not fed today'}</span>
+          <button class="btn btn-primary" onclick="feedPet('${pet.id}')">Feed (10 tokens)</button>
+        </span>
+      </div>
     `;
     petsList.appendChild(li);
   });

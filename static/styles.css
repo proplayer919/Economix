@@ -596,3 +596,35 @@ a {
   background-color: #f8fafc;
   text-align: center;
 }
+
+.pet-entry {
+  background-color: var(--card-bg);
+  border-radius: 0.5rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+
+.pet-entry-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pet-info {
+  text-align: center;
+}
+
+.pet-status {
+  font-weight: bold;
+  color: var(--success);
+}
+
+.feeding-status {
+  font-style: italic;
+  color: var(--danger);
+}
+
+.pet-entry button {
+  margin-top: 0.5rem;
+}
