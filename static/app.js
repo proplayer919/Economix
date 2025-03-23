@@ -338,7 +338,7 @@ function renderPets(pets) {
   }
 
   pets.forEach(pet => {
-    const lastFed = new Date(pet.last_fed);
+    const lastFed = new Date(pet.last_fed * 1000);
     const timeAgo = new Date(Date.now() - lastFed.getTime());
     const daysAgo = Math.floor(timeAgo / (1000 * 60 * 60 * 24));
 
