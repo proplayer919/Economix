@@ -263,7 +263,10 @@ def update_item(item_id):
 def update_pet(pet_id):
     pet = pets_collection.find_one({"id": pet_id})
         
-    last_fed = datetime.datetime.fromtimestamp(pet["last_fed"])
+    last_fed = pet["last_fed"]
+    
+    if isinstance(last_fed, (int, float)):  
+        last_fed = datetime.datetime.fromtimestamp(last_fed)
     
     today = datetime.datetime.now()
     yesterday = today - datetime.timedelta(days=1)
@@ -468,7 +471,7 @@ def generate_pet(owner):
         "level": 1,
         "owner": owner,
         "created_at": int(time.time()),
-        "last_fed": datetime.datetime.now() - datetime.timedelta(days=1),
+        "last_fed": (datetime.datetime.now() - datetime.timedelta(days=1)).timestamp(),
         "status": "healthy",
     }
 
