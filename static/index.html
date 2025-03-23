@@ -15,16 +15,21 @@
 
     <!-- SEO -->
     <meta name="description" content="Economix: The ultimate game of trade, risk, and reward">
-    <meta name="keywords" content="Economix, game, buying, selling, marketplace, trade, economy, fun, fun game, cool game">
+    <meta name="keywords"
+      content="Economix, game, buying, selling, marketplace, trade, economy, fun, fun game, cool game">
     <meta property="og:title" content="Economix - The Game of Trade">
-    <meta property="og:description" content="Economix is a game where you can buy, sell, and trade your way to the top.">
+    <meta property="og:description"
+      content="Economix is a game where you can buy, sell, and trade your way to the top.">
     <meta property="og:url" content="https://economix.proplayer919.dev">
     <meta property="og:type" content="website">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="Economix - The Game of Trade">
-    <meta name="twitter:description" content="Economix is a game where you can buy, sell, and trade your way to the top. It's super fun and you should play it.">
+    <meta name="twitter:description"
+      content="Economix is a game where you can buy, sell, and trade your way to the top. It's super fun and you should play it.">
 
     <link rel="stylesheet" href="styles.css" />
+
+    <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
 
     <title>Economix v2.0</title>
   </head>
@@ -94,6 +99,7 @@
           <button class="tab chat-tab-button" data-tab="chat">💬 Chat</button>
           <button class="tab" data-tab="leaderboard">🏆 Leaderboard</button>
           <button class="tab" data-tab="settings">⚙️ Settings</button>
+          <button class="tab" data-tab="pro">⭐️ Pro</button>
         </div>
 
         <!-- Tab Contents -->
@@ -262,6 +268,18 @@
               </div>
             </div>
           </div>
+
+          <!-- Pro Tab -->
+          <div class="tab-content" id="tab-pro">
+            <div class="card">
+              <div class="card-header">
+                <h2>⭐ Pro</h2>
+              </div>
+              <stripe-pricing-table pricing-table-id="prctbl_1R5fIXDOJm6z6Mj6Z6mLlhoP"
+                publishable-key="pk_live_51LiZ9hDOJm6z6Mj6828KX4rQbYR5dlGkzNPqYxr1QUFUz2R5PWyPCpYIyKGxEeNK9C4LM0rUNjp0I7yNOHNLcN7W00Bg2FSTJz">
+              </stripe-pricing-table>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -270,7 +288,7 @@
     <div id="bannedPage" style="display: none;">
       <div class="card card-center">
         <div class="card-header">
-          <h2>🚫 Your account has been banned</h2>
+          <h2>🚫 Your account has been banned. Any subscriptions have been cancelled and refunded.</h2>
         </div>
         <p><b>Reason:</b> <span id="banReason"></span></p>
         <p><b>Expires:</b> <span id="banExpires"></span></p>

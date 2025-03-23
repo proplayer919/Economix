@@ -19,6 +19,8 @@ import qrcode
 import io
 from better_profanity import profanity
 import requests
+import stripe
+
 
 # Initialize Flask application
 app = Flask(__name__)
@@ -70,6 +72,13 @@ TOKEN_MINE_COOLDOWN = int(os.environ.get("TOKEN_MINE_COOLDOWN", 120))
 MAX_ITEM_PRICE = 1000000000000
 MIN_ITEM_PRICE = 1
 DISCORD_WEBHOOK = os.environ.get("DISCORD_WEBHOOK")
+
+# Stripe configuration
+STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY")
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
+
+stripe.api_key = STRIPE_SECRET_KEY
 
 # Item generation constants
 try:
@@ -165,17 +174,14 @@ def send_discord_notification(title, description, color=0x00FF00):
 # Authentication middleware
 @app.before_request
 def authenticate_user():
-    if (
-        request.method == "OPTIONS"
-        or request.endpoint
-        in [
-            "register_endpoint",
-            "login_endpoint",
-            "index",
-            "static_file",
-            "stats_endpoint",
-        ]
-    ):
+    if request.method == "OPTIONS" or request.endpoint in [
+        "register_endpoint",
+        "login_endpoint",
+        "index",
+        "static_file",
+        "stats_endpoint",
+        "stripe_webhook",
+    ]:
         return
 
     auth_header = request.headers.get("Authorization")
@@ -300,6 +306,16 @@ def update_account(username):
             {"username": username}, {"$set": {"2fa_enabled": False}}
         )
 
+    if "subscriptions" not in user:
+        users_collection.update_one(
+            {"username": username}, {"$set": {"subscriptions": []}}
+        )
+
+    if "override_plan" not in user:
+        users_collection.update_one(
+            {"username": username}, {"$set": {"override_plan": None}}
+        )
+
     if user.get("banned_until", None) and (
         user["banned_until"] < time.time() and user["banned_until"] != 0
     ):
@@ -318,6 +334,11 @@ def update_account(username):
 
     for item_id in user["items"]:
         update_item(item_id)
+
+    if user["type"] == "admin":
+        users_collection.update_one(
+            {"username": username}, {"$set": {"override_plan": "proplus"}}
+        )
 
 
 # Admin requirement decorator
@@ -367,6 +388,28 @@ def requires_unbanned(f):
         return f(*args, **kwargs)
 
     return decorated
+
+
+# Subscription requirement
+def requires_subscription(username, plan):
+    if plan == "pro":
+        user = users_collection.find_one({"username": username})
+        if user["override_plan"] in ["pro", "proplus"]:
+            return True
+
+        for subscription in user["subscriptions"]:
+            if subscription["plan"] == "pro" or subscription["plan"] == "proplus":
+                return True
+    elif plan == "proplus":
+        user = users_collection.find_one({"username": username})
+        if user["override_plan"] == "proplus":
+            return True
+
+        for subscription in user["subscriptions"]:
+            if subscription["plan"] == "proplus":
+                return True
+
+    return False
 
 
 # Item generation function
@@ -547,6 +590,8 @@ def register(username, password):
                 "level": 1,
                 "2fa_enabled": False,
                 "inventory_visibility": "private",
+                "subscriptions": [],
+                "override_plan": None,
             }
         )
 
@@ -617,6 +662,13 @@ def delete_account(username):
 
     # Delete the user
     users_collection.delete_one({"username": username})
+
+    for sub in user.get("subscriptions", []):
+        if sub["status"] == "active":
+            try:
+                stripe.Subscription.delete(sub["subscription_id"])
+            except stripe.error.StripeError as e:
+                app.logger.error(f"Error canceling subscription: {str(e)}")
 
     send_discord_notification(f"User deleted", f"Username: {username}")
 
@@ -1313,6 +1365,19 @@ def ban_user(username, length, reason):
         {"username": username},
         {"$set": {"banned_until": end_time, "banned_reason": reason, "banned": True}},
     )
+
+    for sub in user.get("subscriptions", []):
+        if sub["status"] == "active":
+            try:
+                subscription = stripe.Subscription.retrieve(sub["subscription_id"])
+                stripe.Subscription.delete(sub["subscription_id"])
+
+                # Refund the latest invoice
+                invoice = stripe.Invoice.retrieve(subscription.latest_invoice)
+                stripe.Refund.create(payment_intent=invoice.payment_intent)
+            except stripe.error.StripeError as e:
+                app.logger.error(f"Error processing refund: {str(e)}")
+
     send_discord_notification(
         title="User Banned",
         description=f"Admin {request.username} banned {username} for {length}. Reason: {reason}",
@@ -1959,3 +2024,105 @@ def set_banner_endpoint():
     banner = data.get("banner")
 
     return set_banner(banner)
+
+
+# Stripe
+@app.route("/api/create_subscription", methods=["POST"])
+@requires_unbanned
+def create_subscription():
+    data = request.get_json()
+    price_id = data.get("price_id")
+
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card", "paypal"],
+            line_items=[{"price": price_id, "quantity": 1}],
+            mode="subscription",
+            success_url=os.environ.get(
+                "STRIPE_SUCCESS_URL", "https://economix.proplayer919.dev"
+            ),
+            cancel_url=os.environ.get(
+                "STRIPE_CANCEL_URL", "https://economix.proplayer919.dev"
+            ),
+            metadata={"username": request.username},
+        )
+        return jsonify({"sessionId": session.id})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/stripe_webhook", methods=["POST"])
+def stripe_webhook():
+    payload = request.data
+    sig_header = request.headers.get("Stripe-Signature")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError as e:
+        return jsonify({"error": "Invalid payload"}), 400
+    except stripe.error.SignatureVerificationError as e:
+        return jsonify({"error": "Invalid signature"}), 400
+
+    # Handle subscription events
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        username = session["metadata"]["username"]
+        subscription_id = session["subscription"]
+
+        subscription = stripe.Subscription.retrieve(subscription_id)
+        price = stripe.Price.retrieve(subscription["items"]["data"][0]["price"]["id"])
+        product = stripe.Product.retrieve(price["product"])
+
+        price_lookup_key = price.lookup_key
+
+        if price_lookup_key == "pro_monthly":
+            plan = "pro"
+        elif price_lookup_key == "pro_yearly":
+            plan = "pro"
+        elif price_lookup_key == "proplus_monthly":
+            plan = "proplus"
+        elif price_lookup_key == "proplus_yearly":
+            plan = "proplus"
+
+        users_collection.update_one(
+            {"username": username},
+            {
+                "$push": {
+                    "subscriptions": {
+                        "subscription_id": subscription_id,
+                        "price_id": price["id"],
+                        "product": product["name"],
+                        "interval": price["recurring"]["interval"],
+                        "status": subscription["status"],
+                        "current_period_end": subscription["current_period_end"],
+                        "plan": plan,
+                    }
+                }
+            },
+        )
+        
+        send_discord_notification(
+            f"New Subscription",
+            f"{username} has subscribed to the {plan} plan",
+        )
+
+    elif event["type"] in [
+        "customer.subscription.updated",
+        "customer.subscription.deleted",
+    ]:
+        subscription = event["data"]["object"]
+        users_collection.update_one(
+            {"subscriptions.subscription_id": subscription["id"]},
+            {
+                "$set": {
+                    "subscriptions.$.status": subscription["status"],
+                    "subscriptions.$.current_period_end": subscription[
+                        "current_period_end"
+                    ],
+                }
+            },
+        )
+
+    return jsonify({"success": True}), 200

@@ -8,3 +8,4 @@ qrcode
 pillow
 better_profanity
 requests
+stripe

@@ -3,8 +3,8 @@ let inventoryPage = 1;
 let marketPage = 1;
 const itemsPerPage = 5;
 
-const ITEM_CREATE_COOLDOWN = 60;
-const TOKEN_MINE_COOLDOWN = 120;
+const ITEM_CREATE_COOLDOWN = 1 * 60; // 1 minute
+const TOKEN_MINE_COOLDOWN = 5 * 60; // 5 minutes
 
 let items = [];
 let globalMessages = [];
