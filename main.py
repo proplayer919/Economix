@@ -65,8 +65,8 @@ item_meta_collection.create_index([("id", ASCENDING)])
 misc_collection.create_index([("type", ASCENDING)])
 
 # Configuration constants
-ITEM_CREATE_COOLDOWN = int(os.environ.get("ITEM_CREATE_COOLDOWN", 60))
-TOKEN_MINE_COOLDOWN = int(os.environ.get("TOKEN_MINE_COOLDOWN", 120))
+ITEM_CREATE_COOLDOWN = 1 * 60
+TOKEN_MINE_COOLDOWN = 5 * 60
 MAX_ITEM_PRICE = 1000000000000
 MIN_ITEM_PRICE = 1
 DISCORD_WEBHOOK = os.environ.get("DISCORD_WEBHOOK")
