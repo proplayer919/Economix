@@ -19,6 +19,7 @@ import qrcode
 import io
 from better_profanity import profanity
 import requests
+import datetime
 
 # Initialize Flask application
 app = Flask(__name__)
@@ -55,6 +56,7 @@ messages_collection = db.messages
 rooms_collection = db.rooms
 item_meta_collection = db.item_meta
 misc_collection = db.misc
+pets_collection = db.pets
 
 # Create indexes
 users_collection.create_index([("username", ASCENDING)], unique=True)
@@ -63,6 +65,7 @@ messages_collection.create_index([("room", ASCENDING), ("timestamp", DESCENDING)
 rooms_collection.create_index([("name", ASCENDING)], unique=True)
 item_meta_collection.create_index([("id", ASCENDING)])
 misc_collection.create_index([("type", ASCENDING)])
+pets_collection.create_index([("id", ASCENDING)], unique=True)
 
 # Configuration constants
 ITEM_CREATE_COOLDOWN = 1 * 60
@@ -81,6 +84,8 @@ try:
         NOUNS = json.load(f)
     with open("words/suffixes.json", "r") as f:
         SUFFIXES = json.load(f)
+    with open("words/pet_names.json", "r") as f:
+        PET_NAMES = json.load(f)
     app.logger.info("Loaded item generation word lists successfully")
 except Exception as e:
     app.logger.critical(f"Failed to load word lists: {str(e)}")
@@ -254,6 +259,27 @@ def update_item(item_id):
             }
         },
     )
+    
+def update_pet(pet_id):
+    pet = pets_collection.find_one({"id": pet_id})
+        
+    last_fed = datetime.datetime.fromtimestamp(pet["last_fed"]).date()
+    
+    today = datetime.datetime.now().date()
+    yesterday = today - datetime.timedelta(days=1)
+    two_days_ago = today - datetime.timedelta(days=2)
+    three_days_ago = today - datetime.timedelta(days=3)
+    
+    if last_fed == today:
+        pets_collection.update_one({"id": pet_id}, {"$set": {"health": "healthy"}})
+    elif last_fed == yesterday:
+        pets_collection.update_one({"id": pet_id}, {"$set": {"health": "healthy"}})
+    elif last_fed == two_days_ago:
+        pets_collection.update_one({"id": pet_id}, {"$set": {"health": "hungry"}})
+    elif last_fed == three_days_ago:
+        pets_collection.update_one({"id": pet_id}, {"$set": {"health": "starving"}})
+    else:
+        pets_collection.update_one({"id": pet_id}, {"$set": {"health": "dead"}})
 
 
 def update_account(username):
@@ -299,6 +325,11 @@ def update_account(username):
         users_collection.update_one(
             {"username": username}, {"$set": {"2fa_enabled": False}}
         )
+        
+    if "pets" not in user:
+        users_collection.update_one(
+            {"username": username}, {"$set": {"pets": []}}
+        )
 
     if user.get("banned_until", None) and (
         user["banned_until"] < time.time() and user["banned_until"] != 0
@@ -318,6 +349,9 @@ def update_account(username):
 
     for item_id in user["items"]:
         update_item(item_id)
+        
+    for pet_id in user["pets"]:
+        update_pet(pet_id)
 
 
 # Admin requirement decorator
@@ -425,6 +459,17 @@ def generate_item(owner):
         "price": 0,
         "owner": owner,
         "created_at": int(time.time()),
+    }
+    
+def generate_pet(owner):
+    return {
+        "id": str(uuid4()),
+        "name": random.choice(PET_NAMES),
+        "level": 1,
+        "owner": owner,
+        "created_at": int(time.time()),
+        "last_fed": datetime.datetime.now() - datetime.timedelta(days=1),
+        "status": "healthy",
     }
 
 
@@ -547,6 +592,7 @@ def register(username, password):
                 "level": 1,
                 "2fa_enabled": False,
                 "inventory_visibility": "private",
+                "pets": [],
             }
         )
 
@@ -771,6 +817,52 @@ def create_item(username):
     return jsonify(
         {k: v for k, v in new_item.items() if k != "_id" and k != "item_secret"}
     )
+    
+def buy_pet(username):
+    user = users_collection.find_one({"username": username}, {"_id": 0})
+    if not user:
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+
+    if user["tokens"] < 100:
+        return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
+      
+    pet = generate_pet(username)
+    pets_collection.insert_one(pet)
+    users_collection.update_one(
+        {"username": username},
+        {"$inc": {"tokens": -100}, "$push": {"pets": pet["id"]}},
+    )
+
+    send_discord_notification(
+        title="New Pet Bought",
+        description=f"User {username} bought a new pet: {pet['name']}",
+        color=0x00FF00,
+    )
+
+    return jsonify(pet)
+  
+def feed_pet(username, pet_id):
+    user = users_collection.find_one({"username": username}, {"_id": 0})
+    if not user:
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+
+    pet = pets_collection.find_one({"id": pet_id})
+    if not pet:
+        return jsonify({"error": "Pet not found", "code": "pet-not-found"}), 404
+
+    if user["tokens"] < 10:
+        return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
+
+    pets_collection.update_one({"id": pet_id}, {"$set": {"last_fed": time.time()}})
+    users_collection.update_one({"username": username}, {"$inc": {"tokens": -10}})
+
+    send_discord_notification(
+        title="Pet Fed",
+        description=f"User {username} fed their pet: {pet['name']}",
+        color=0x00FF00,
+    )
+
+    return jsonify({"success": True})
 
 
 def mine_tokens(username):
@@ -1684,6 +1776,9 @@ def account_endpoint():
 
     items = items_collection.find({"id": {"$in": user["items"]}}, {"_id": 0})
     user_items = [item for item in items]
+    
+    pets = pets_collection.find({"id": {"$in": user["pets"]}}, {"_id": 0})
+    user_pets = [pet for pet in pets]
 
     return jsonify(
         {
@@ -1696,12 +1791,13 @@ def account_endpoint():
             "banned_until": user.get("banned_until"),
             "banned_reason": user.get("banned_reason"),
             "banned": user.get("banned"),
-            "frozen": user.get("frozen"),
             "muted": user.get("muted"),
             "muted_until": user.get("muted_until"),
             "exp": user.get("exp"),
             "level": user.get("level"),
             "history": user.get("history"),
+            "2fa_enabled": user.get("2fa_enabled"),
+            "pets": user_pets,
         }
     )
 
@@ -1716,7 +1812,19 @@ def delete_account_endpoint():
 @requires_unbanned
 def create_item_endpoint():
     return create_item(request.username)
+  
+@app.route("/api/buty_pet", methods=["POST"])
+@requires_unbanned
+def buy_pet_endpoint():
+    return buy_pet(request.username)
+  
+@app.route("/api/feed_pet", methods=["POST"])
+@requires_unbanned
+def feed_pet_endpoint():
+    data = request.get_json()
+    pet_id = data.get("pet_id")
 
+    return feed_pet(request.username, pet_id)
 
 @app.route("/api/mine_tokens", methods=["POST"])
 @requires_unbanned

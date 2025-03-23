@@ -7,6 +7,7 @@ const ITEM_CREATE_COOLDOWN = 1 * 60;
 const TOKEN_MINE_COOLDOWN = 5 * 60;
 
 let items = [];
+let pets = [];
 let globalMessages = [];
 let account = {};
 let token = localStorage.getItem('token');
@@ -302,6 +303,9 @@ function refreshAccount() {
       // Render inventory with pagination
       applyInventoryFilters(items);
 
+      pets = data.pets;
+      renderPets(pets);
+
       // Update cooldowns
       const now = Date.now() / 1000;
       const remaining = ITEM_CREATE_COOLDOWN - (now - data.last_item_time);
@@ -314,6 +318,46 @@ function refreshAccount() {
       mineCooldownEl.innerHTML = mineRemaining > 0 ?
         `Mining cooldown: ${Math.ceil(mineRemaining)}s remaining.${account.type === 'admin' ? ' <a href="#" onclick="resetCooldown()">Skip cooldown? (Admin)</a>' : ''}` : '';
     });
+}
+
+function renderPets(pets) {
+  const petsList = document.getElementById('pet-list');
+  petsList.innerHTML = '';
+
+  if (pets.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'pet-entry';
+    li.innerHTML = 'You have no pets. <button class="btn btn-primary" onclick="buyPet()">Buy a pet (100 tokens)</button>';
+    petsList.appendChild(li);
+    return;
+  }
+
+  pets.forEach(pet => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const lastFed = new Date(pet.lastFed);
+    const timeDiff = today.getTime() - lastFed.getTime();
+    const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
+    if (daysDiff >= 1) {
+      fedToday = false;
+    }
+    else {
+      fedToday = true;
+    }
+
+    const li = document.createElement('li');
+    li.className = 'pet-entry';
+    li.innerHTML = `
+      <span class="pet-info">
+        ${pet.name} - Level ${pet.level}
+        Your pet is ${pet.status}
+        <br>
+        ${fedToday ? 'Fed today' : 'Not fed today'}
+        <button class="btn btn-primary" onclick="feedPet('${pet.id}')">Feed (10 tokens)</button>
+      </span>
+    `;
+    petsList.appendChild(li);
+  });
 }
 
 function applyInventoryFilters(items) {
@@ -982,7 +1026,7 @@ function appendMessage(message) {
 
 // New time formatter
 function formatTime(timestamp) {
-  const date = new Date(timestamp);
+  const date = new Date(timestamp * 1000);
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
@@ -1381,6 +1425,43 @@ function disable2FA() {
       }
       else {
         customAlert("Failed to disable 2FA.");
+      }
+    });
+}
+
+function buyPet() {
+  fetch('/api/buy_pet', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        customAlert('Pet bought!').then(() => {
+          refreshAccount();
+        });
+      }
+      else {
+        customAlert("Failed to buy pet.");
+      }
+    });
+}
+
+function feedPet(petId) {
+  fetch(`/api/feed_pet`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ pet_id: petId })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        customAlert('Pet fed!').then(() => {
+          refreshAccount();
+        });
+      }
+      else {
+        customAlert("Failed to feed pet.");
       }
     });
 }
