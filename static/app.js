@@ -338,7 +338,7 @@ function renderPets(pets) {
   }
 
   pets.forEach(pet => {
-    const lastFed = new Date(pet.lastFed);
+    const lastFed = new Date(pet.last_fed);
 
     const li = document.createElement('li');
     li.className = 'pet-entry';
