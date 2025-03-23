@@ -1451,7 +1451,7 @@ function buyPet() {
 function feedPet(petId) {
   fetch(`/api/feed_pet`, {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}` },
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ pet_id: petId })
   })
     .then(res => res.json())
