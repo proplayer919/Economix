@@ -339,6 +339,8 @@ function renderPets(pets) {
 
   pets.forEach(pet => {
     const lastFed = new Date(pet.last_fed);
+    const timeAgo = new Date(Date.now() - lastFed.getTime());
+    const daysAgo = Math.floor(timeAgo / (1000 * 60 * 60 * 24));
 
     const li = document.createElement('li');
     li.className = 'pet-entry';
@@ -347,7 +349,7 @@ function renderPets(pets) {
         <span class="pet-info">
           <strong>${pet.name}</strong> - Level ${pet.level}<br>
           Status: <span class="pet-status">${pet.status.charAt(0).toUpperCase() + pet.status.slice(1)}</span><br>
-          <span class="feeding-status">Last fed: ${lastFed.toLocaleString()}</span>
+          <span class="feeding-status">Last fed: ${daysAgo === 0 ? 'today' : `${daysAgo} days ago`}</span>
           <button class="btn btn-primary" onclick="feedPet('${pet.id}')">Feed (10 tokens)</button>
         </span>
       </div>
