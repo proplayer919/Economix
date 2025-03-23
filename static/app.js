@@ -338,10 +338,7 @@ function renderPets(pets) {
   }
 
   pets.forEach(pet => {
-    const now = new Date();
     const lastFed = new Date(pet.lastFed);
-
-    const fedToday = lastFed.getDate() === now.getDate();
 
     const li = document.createElement('li');
     li.className = 'pet-entry';
@@ -350,7 +347,7 @@ function renderPets(pets) {
         <span class="pet-info">
           <strong>${pet.name}</strong> - Level ${pet.level}<br>
           Status: <span class="pet-status">${pet.status.charAt(0).toUpperCase() + pet.status.slice(1)}</span><br>
-          <span class="feeding-status">${fedToday ? 'Fed today' : 'Not fed today'}</span>
+          <span class="feeding-status">Last fed: ${lastFed.toLocaleString()}</span>
           <button class="btn btn-primary" onclick="feedPet('${pet.id}')">Feed (10 tokens)</button>
         </span>
       </div>
