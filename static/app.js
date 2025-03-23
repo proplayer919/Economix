@@ -339,11 +339,9 @@ function renderPets(pets) {
 
   pets.forEach(pet => {
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const lastFed = new Date(pet.lastFed);
-    const timeDiff = today.getTime() - lastFed.getTime();
-    const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
-    const fedToday = daysDiff < 1;
+
+    const fedToday = lastFed.getDate() === now.getDate();
 
     const li = document.createElement('li');
     li.className = 'pet-entry';
