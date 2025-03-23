@@ -406,7 +406,7 @@ a {
   padding: 0.75rem;
   border-radius: 0.5rem;
   margin-bottom: 0.5rem;
-  max-width: fit-content;
+  max-width: 70%;
   word-wrap: break-word;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   background: var(--card-bg);
@@ -437,7 +437,7 @@ a {
   background: #e0e7ff;
   border-left: 4px solid #6366f1;
   margin-left: auto;
-  max-width: 80%;
+  max-width: 70%;
 }
 
 .message-header {
