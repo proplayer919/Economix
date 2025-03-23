@@ -628,3 +628,7 @@ a {
 .pet-entry button {
   margin-top: 0.5rem;
 }
+
+.pet-list {
+  list-style: none;
+}
