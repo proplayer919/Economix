@@ -620,11 +620,6 @@ a {
   color: var(--success);
 }
 
-.feeding-status {
-  font-style: italic;
-  color: var(--danger);
-}
-
 .pet-entry button {
   margin-top: 0.5rem;
 }
