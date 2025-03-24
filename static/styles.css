@@ -1,4 +1,5 @@
 :root {
+  /* Light Theme */
   --primary: #2563eb;
   --secondary: #3b82f6;
   --success: #22c55e;
@@ -7,6 +8,30 @@
   --card-bg: #ffffff;
   --text: #1e293b;
   --border: #e2e8f0;
+  --modal-bg: #ffffff;
+  --shadow: rgba(0, 0, 0, 0.05);
+  --system-message: #f0fdf4;
+  --admin-message: #eff6ff;
+  --mod-message: #fef2f2;
+  --own-message: #e0e7ff;
+}
+
+[data-theme="dark"] {
+  /* Dark Theme */
+  --primary: #3b82f6;
+  --secondary: #60a5fa;
+  --success: #22c55e;
+  --danger: #ef4444;
+  --background: #1a1a1a;
+  --card-bg: #2d2d2d;
+  --text: #ffffff;
+  --border: #404040;
+  --modal-bg: #2d2d2d;
+  --shadow: rgba(0, 0, 0, 0.2);
+  --system-message: rgba(240, 253, 244, 0.1);
+  --admin-message: rgba(239, 246, 255, 0.1);
+  --mod-message: rgba(254, 242, 242, 0.1);
+  --own-message: rgba(224, 231, 255, 0.1);
 }
 
 /* Global Reset and Base Styles */
@@ -25,6 +50,7 @@ body {
   line-height: 1.6;
   min-height: 100vh;
   padding: 2rem;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Utility Classes */
@@ -72,7 +98,7 @@ body {
   background: var(--card-bg);
   padding: 1.5rem;
   border-radius: 0.75rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 4px var(--shadow);
   border: 1px solid var(--border);
   position: relative;
   gap: 1rem;
@@ -272,7 +298,7 @@ textarea:focus {
 }
 
 .modal-content {
-  background-color: #fff;
+  background-color: var(--modal-bg);
   margin: 10% auto;
   padding: 20px;
   border: 1px solid #888;
@@ -419,22 +445,22 @@ a {
 }
 
 .message.system {
-  background: #f0fdf4;
+  background: var(--system-message);
   border-left: 4px solid #22c55e;
 }
 
 .message.admin {
-  background: #eff6ff;
+  background: var(--admin-message);
   border-left: 4px solid #3b82f6;
 }
 
 .message.mod {
-  background: #fef2f2;
+  background: var(--mod-message);
   border-left: 4px solid #ef4444;
 }
 
 .own-message {
-  background: #e0e7ff;
+  background: var(--own-message);
   border-left: 4px solid #6366f1;
   margin-left: auto;
   max-width: 70%;

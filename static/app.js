@@ -1464,6 +1464,18 @@ function feedPet(petId) {
     });
 }
 
+function toggleDarkMode() {
+  const currentTheme = localStorage.getItem('theme') || 'light';
+  const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem('theme', newTheme);
+}
+
+function initializeTheme() {
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+}
+
 // Helper functions for auto-scrolling
 function isUserAtBottom(container) {
   // Allow a small threshold (e.g., 2 pixels) for precision issues.
@@ -1484,6 +1496,7 @@ document.getElementById('messageInput').addEventListener("keyup", function (even
     sendGlobalMessage();
   };
 });
+document.getElementById('toggleDarkMode').addEventListener('click', toggleDarkMode);
 document.getElementById('deleteAccount').addEventListener('click', deleteAccount);
 document.getElementById('logout').addEventListener('click', () => {
   localStorage.removeItem('token');
@@ -1531,6 +1544,7 @@ document.getElementById('muteUserMod').addEventListener('click', muteUser);
 document.getElementById('unmuteUserMod').addEventListener('click', unmuteUser);
 
 // Initial data refresh
+initializeTheme();
 getStats();
 
 if (token) {
