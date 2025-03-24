@@ -20,6 +20,7 @@ import io
 from better_profanity import profanity
 import requests
 import datetime
+from threading import Thread
 
 # Initialize Flask application
 app = Flask(__name__)
@@ -46,7 +47,7 @@ app.logger.setLevel(logging.INFO)
 profanity.load_censor_words()
 
 # MongoDB configuration
-client = MongoClient(os.environ.get("MONGODB_URI"))
+client = MongoClient(os.environ.get("MONGODB_URI"), maxPoolSize=50, connect=False)
 db = client.get_database(os.environ.get("MONGODB_DB"))
 
 # Collections
@@ -60,8 +61,8 @@ pets_collection = db.pets
 
 # Create indexes
 users_collection.create_index([("username", ASCENDING)], unique=True)
-items_collection.create_index([("id", ASCENDING)], unique=True)
-messages_collection.create_index([("room", ASCENDING), ("timestamp", DESCENDING)])
+items_collection.create_index([("id", ASCENDING), ("owner", ASCENDING)])
+messages_collection.create_index([("room", ASCENDING), ("timestamp", ASCENDING)])
 rooms_collection.create_index([("name", ASCENDING)], unique=True)
 item_meta_collection.create_index([("id", ASCENDING)])
 misc_collection.create_index([("type", ASCENDING)])
@@ -150,7 +151,7 @@ def parse_time(length):
     return end_time
 
 
-def send_discord_notification(title, description, color=0x00FF00):
+def _send_discord_notification(title, description, color=0x00FF00):
     webhook_url = DISCORD_WEBHOOK
     if not webhook_url:
         app.logger.error("Discord webhook URL not configured.")
@@ -165,6 +166,9 @@ def send_discord_notification(title, description, color=0x00FF00):
         app.logger.error(
             f"Failed to send notification to Discord: {response.status_code} {response.text}"
         )
+        
+def send_discord_notification(title, description, color=0x00FF00):
+    Thread(target=_send_discord_notification, args=(title, description, color)).start()
 
 
 # Authentication middleware
