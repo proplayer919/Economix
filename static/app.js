@@ -1236,10 +1236,20 @@ function listUsers() {
     .then(res => res.json())
     .then(data => {
       if (data.usernames) {
-        customAlert(data.usernames.join('<b>;</b>'));
+        let container = document.createElement("DIV");
+        for (let user in data.usernames){
+            let username = data.usernames[user];
+
+            let p = document.createElement("P");
+            p.innerText = username;
+            p.appendChild(document.createElement("BR"))
+
+            container.appendChild(p)
+        }
+        customAlert(container.innerHTML);
       }
     });
-}
+};
 
 function editExp() {
   customPrompt("Enter exp:").then(exp => {
