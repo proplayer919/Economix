@@ -1235,6 +1235,7 @@ function listUsers() {
   })
     .then(res => res.json())
     .then(data => {
+      console.log(data)
       if (data.usernames) {
         let container = document.createElement("DIV");
         for (let user in data.usernames){
