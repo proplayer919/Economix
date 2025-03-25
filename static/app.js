@@ -1249,7 +1249,7 @@ function listUsers() {
         customAlert(container.innerHTML);
       }
     });
-};
+}
 
 function editExp() {
   customPrompt("Enter exp:").then(exp => {
