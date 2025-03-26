@@ -1,8 +1,1 @@
-# Economix
-
-Economix is an economy game about buying and selling stuff. [Check it out!](https://economix.proplayer919.dev)
-
-# Credits
-
-- proplayer919 - Original Creator & Owner
-- 777Portal (ExonAuto) - Contributor
+MOVED TO <https://github.com/economix-app/server> and <https://github.com/economix-app/website>
